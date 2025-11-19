@@ -3,9 +3,9 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/ads25b9---Algorithm-and-Data-Structures-Mini-Project.iml" filepath="$PROJECT_DIR$/.idea/ads25b9---Algorithm-and-Data-Structures-Mini-Project.iml" />
-      <module fileurl="file://$PROJECT_DIR$/untitled/untitled.iml" filepath="$PROJECT_DIR$/untitled/untitled.iml" />
-      <module fileurl="file://$PROJECT_DIR$/untitled/untitled1/untitled1.iml" filepath="$PROJECT_DIR$/untitled/untitled1/untitled1.iml" />
-      <module fileurl="file://$PROJECT_DIR$/untitled/untitled1/untitled2/untitled2.iml" filepath="$PROJECT_DIR$/untitled/untitled1/untitled2/untitled2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Graph/untitled.iml" filepath="$PROJECT_DIR$/Graph/untitled.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Graph/untitled1/untitled1.iml" filepath="$PROJECT_DIR$/Graph/untitled1/untitled1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Graph/untitled1/untitled2/untitled2.iml" filepath="$PROJECT_DIR$/Graph/untitled1/untitled2/untitled2.iml" />
       <module fileurl="file://$PROJECT_DIR$/untitled3/untitled3.iml" filepath="$PROJECT_DIR$/untitled3/untitled3.iml" />
     </modules>
   </component>
