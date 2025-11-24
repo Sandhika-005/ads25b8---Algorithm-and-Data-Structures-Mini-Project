@@ -15,12 +15,23 @@ public class GameVisualizer extends JFrame {
         Board board = new Board(64);
         gameEngine = new GameEngine(board, this);
         boardPanel = new BoardPanel(board, gameEngine);
-        controlPanel = new GameControlPanel(gameEngine, boardPanel);
+        controlPanel = new GameControlPanel(gameEngine, boardPanel, this);
 
         gameEngine.setControlPanel(controlPanel);
 
         showMainScreen();
 
+        SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
+    }
+
+    // Rebuild board/game with new node count (called from GameControlPanel)
+    public void updateBoardNodeCount(int nodeCount) {
+        Board board = new Board(nodeCount);
+        this.gameEngine = new GameEngine(board, this);
+        this.boardPanel = new BoardPanel(board, gameEngine);
+        this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this);
+        this.gameEngine.setControlPanel(controlPanel);
+        showMainScreen();
         SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
     }
 

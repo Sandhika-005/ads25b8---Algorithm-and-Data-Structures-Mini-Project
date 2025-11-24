@@ -6,9 +6,9 @@ class Board {
     private final int totalNodes;
     private List<BoardNode> nodes;
     private final int NODES_PER_ROW = 8;
-    // Reduced padding and spacing to "dempet" nodes (closer together)
-    private final int PADDING = 20;
-    private final int SPACING = 8;
+    // No padding/spacing so nodes are contiguous (touching)
+    private final int PADDING = 0;
+    private final int SPACING = 0;
 
     public Board(int totalNodes) {
         this.totalNodes = totalNodes;
@@ -18,9 +18,11 @@ class Board {
 
     private void initializeBoardNodes() {
         int correctedNodeId = 1;
-        int totalRows = totalNodes / NODES_PER_ROW;
+        // compute rows to fit any number of nodes (round up)
+        int totalRows = (totalNodes + NODES_PER_ROW - 1) / NODES_PER_ROW;
 
-        // Loop dari baris paling ATAS (row = 0) hingga paling BAWAH (row = 7)
+        // Loop dari baris paling ATAS (row = 0) hingga paling BAWAH
+        outer:
         for (int row = 0; row < totalRows; row++) {
 
             // visualRow: Menghitung baris dari perspektif GUI (0=Atas, 7=Bawah)
@@ -30,6 +32,9 @@ class Board {
             boolean rightToLeft = (row % 2 != 0);
 
             for (int col = 0; col < NODES_PER_ROW; col++) {
+
+                // stop when we've placed all nodes
+                if (correctedNodeId > totalNodes) break outer;
 
                 int nodeX;
 

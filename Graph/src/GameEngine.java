@@ -33,35 +33,47 @@ class GameEngine {
 
     // --- Inisialisasi Pemain ---
     public void promptForPlayers() {
-        String input = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain (min 2, max " + MAX_PLAYERS + "):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
-        if (input == null || input.trim().isEmpty()) {
-            System.exit(0);
-            return;
-        }
+        // Ask for number of human players and AI players
         try {
-            int count = Integer.parseInt(input);
-            if (count < 2 || count > MAX_PLAYERS) {
-                JOptionPane.showMessageDialog(mainApp, "Jumlah pemain harus antara 2 dan " + MAX_PLAYERS + ".", "Error", JOptionPane.ERROR_MESSAGE);
+            String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain manusia (min 1):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
+            if (sh == null) { System.exit(0); return; }
+            int humanCount = Integer.parseInt(sh.trim());
+
+            String sa = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah AI (>=0):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
+            if (sa == null) { System.exit(0); return; }
+            int aiCount = Integer.parseInt(sa.trim());
+
+            int total = humanCount + aiCount;
+            if (total < 2 || total > MAX_PLAYERS || humanCount < 1) {
+                JOptionPane.showMessageDialog(mainApp, "Total pemain harus antara 2 dan " + MAX_PLAYERS + " dengan minimal 1 pemain manusia.", "Error", JOptionPane.ERROR_MESSAGE);
                 promptForPlayers();
                 return;
             }
-            initializePlayers(count);
+            initializePlayers(humanCount, aiCount);
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(mainApp, "Input tidak valid. Masukkan angka.", "Error", JOptionPane.ERROR_MESSAGE);
             promptForPlayers();
         }
     }
 
-    private void initializePlayers(int count) {
+    private void initializePlayers(int humanCount, int aiCount) {
         List<Player> allPlayers = new ArrayList<>();
         Color[] playerColors = {Color.RED, Color.BLUE, new Color(60, 180, 75), Color.MAGENTA, Color.ORANGE};
+        int colorIdx = 0;
 
-        for (int i = 0; i < count; i++) {
+        // Human players: ask names
+        for (int i = 0; i < humanCount; i++) {
             String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1), JOptionPane.QUESTION_MESSAGE);
             if (name == null || name.trim().isEmpty()) name = "Pemain " + (i + 1);
-
-            Player newPlayer = new Player(name, playerColors[i % playerColors.length]);
+            Player newPlayer = new Player(name, playerColors[colorIdx++ % playerColors.length], false);
             allPlayers.add(newPlayer);
+        }
+
+        // AI players: automatic names
+        for (int i = 0; i < aiCount; i++) {
+            String aiName = "AI " + (i + 1);
+            Player aiPlayer = new Player(aiName, playerColors[colorIdx++ % playerColors.length], true);
+            allPlayers.add(aiPlayer);
         }
 
         Collections.shuffle(allPlayers);
@@ -74,6 +86,20 @@ class GameEngine {
         currentPlayer = turnQueue.peek();
         controlPanel.updateTurnInfo(currentPlayer);
         mainApp.repaint();
+        scheduleAutoRollIfNeeded();
+    }
+
+    // If current player is AI, schedule an automatic roll after a short delay
+    private void scheduleAutoRollIfNeeded() {
+        if (currentPlayer != null && currentPlayer.isAI()) {
+            if (controlPanel != null) controlPanel.enableRollButton(false);
+            Timer t = new Timer(800, e -> {
+                ((Timer) e.getSource()).stop();
+                rollDiceAndMove();
+            });
+            t.setRepeats(false);
+            t.start();
+        }
     }
 
     // --- Logika Dadu dan Gerakan ---
@@ -87,25 +113,13 @@ class GameEngine {
     // --- ANIMASI DADU ---
     private void startDiceAnimation() {
         final int ANIMATION_DURATION = 1500;
-        final int UPDATE_INTERVAL = 100;
-
-        Timer animationTimer = new Timer(UPDATE_INTERVAL, null);
-        final int totalSteps = ANIMATION_DURATION / UPDATE_INTERVAL;
-        final int[] stepCount = {0};
-
-        animationTimer.addActionListener(e -> {
-            if (stepCount[0] < totalSteps) {
-                // Tampilkan angka acak (1-6) selama animasi
-                int tempRoll = new Random().nextInt(6) + 1;
-                controlPanel.updateDiceAnimation(tempRoll);
-                stepCount[0]++;
-            } else {
-                // Animasi selesai, eksekusi hasil
-                animationTimer.stop();
-                executeDiceRoll();
-            }
-        });
-        animationTimer.start();
+        // Delegate the visual spin to the control panel which will call executeDiceRoll() when done
+        if (controlPanel != null) {
+            controlPanel.startDiceSpinAnimation(ANIMATION_DURATION, this::executeDiceRoll);
+        } else {
+            // fallback if no control panel present
+            executeDiceRoll();
+        }
     }
 
     private void executeDiceRoll() {
@@ -154,6 +168,7 @@ class GameEngine {
 
                 controlPanel.updateTurnInfo(currentPlayer);
                 controlPanel.enableRollButton(true);
+                scheduleAutoRollIfNeeded();
             } else {
                 controlPanel.enableRollButton(false);
                 int direction = movementStack.pop();

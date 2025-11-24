@@ -4,12 +4,21 @@ class Player {
     private final String name;
     private int currentPosition; // Node ID (1 to 64)
     private final Color color;
+    private final boolean isAI;
 
     public Player(String name, Color color) {
+        this(name, color, false);
+    }
+
+    // new constructor to mark AI players
+    public Player(String name, Color color, boolean isAI) {
         this.name = name;
         this.currentPosition = 1; // Mulai dari node 1
         this.color = color;
+        this.isAI = isAI;
     }
+
+    public boolean isAI() { return isAI; }
 
     public String getName() { return name; }
     public int getCurrentPosition() { return currentPosition; }
@@ -18,6 +27,6 @@ class Player {
 
     @Override
     public String toString() {
-        return name + " (Pos: " + currentPosition + ")";
+        return name + (isAI ? " (AI)" : "") + " (Pos: " + currentPosition + ")";
     }
 }
