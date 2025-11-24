@@ -12,7 +12,8 @@ class UnifiedGraph {
     }
 
     public UNode addNode(int x, int y) {
-        String label = "N" + nextNodeId;
+        // generate alphabetical label (A, B, ..., Z, AA, AB, ...)
+        String label = generateAlphaLabel(nextNodeId);
         UNode newNode = new UNode(nextNodeId++, label, x, y);
         this.nodes.add(newNode);
         return newNode;
@@ -48,7 +49,6 @@ class UnifiedGraph {
         }
         return null;
     }
-
 
     public List<UNode> getNodes() {
         return nodes;
@@ -91,5 +91,15 @@ class UnifiedGraph {
 
     public void updateNodeLabel(int nodeId, String newLabel) {
         getNodeById(nodeId).setLabel(newLabel);
+    }
+
+    private String generateAlphaLabel(int index) {
+        StringBuilder sb = new StringBuilder();
+        int i = index;
+        while (i >= 0) {
+            sb.insert(0, (char) ('A' + (i % 26)));
+            i = i / 26 - 1;
+        }
+        return sb.toString();
     }
 }

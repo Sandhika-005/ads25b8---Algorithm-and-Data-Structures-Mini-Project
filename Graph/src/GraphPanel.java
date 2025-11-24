@@ -36,19 +36,19 @@ class GraphPanel extends JPanel {
     }
 
     private void setupUI() {
-        JButton runDijkstraButton = createControlButton("🔍 Run Dijkstra", new Color(220, 100, 50), 150, 20, 200, 40);
+        JButton runDijkstraButton = createControlButton("Run Dijkstra", new Color(220, 100, 50), 150, 20, 200, 40);
         runDijkstraButton.addActionListener(e -> runDijkstra());
         add(runDijkstraButton);
 
-        JButton resetButton = createControlButton("🔄 Reset Colors", new Color(150, 50, 150), 360, 20, 150, 40);
+        JButton resetButton = createControlButton("Reset Colors", new Color(150, 50, 150), 360, 20, 150, 40);
         resetButton.addActionListener(e -> resetVisualization());
         add(resetButton);
 
-        JButton matrixButton = createControlButton("📄 Data Matrix", new Color(50, 150, 200), 520, 20, 150, 40);
+        JButton matrixButton = createControlButton("Data Matrix", new Color(50, 150, 200), 520, 20, 150, 40);
         matrixButton.addActionListener(e -> showMatrixDialog());
         add(matrixButton);
 
-        JButton clearButton = createControlButton("🧹 Clear All", new Color(200, 50, 50), 680, 20, 150, 40);
+        JButton clearButton = createControlButton("Clear All", new Color(200, 50, 50), 680, 20, 150, 40);
         clearButton.addActionListener(e -> clearAllNodes());
         add(clearButton);
     }
@@ -129,11 +129,11 @@ class GraphPanel extends JPanel {
     private void showRightClickMenu(MouseEvent e, UNode node) {
         JPopupMenu menu = new JPopupMenu();
 
-        JMenuItem deleteNodeItem = new JMenuItem("❌ Delete Node " + node.getLabel());
+        JMenuItem deleteNodeItem = new JMenuItem("Delete Node " + node.getLabel());
         deleteNodeItem.addActionListener(ev -> deleteNode(node));
         menu.add(deleteNodeItem);
 
-        JMenuItem renameItem = new JMenuItem("✏️ Rename Node " + node.getLabel());
+        JMenuItem renameItem = new JMenuItem("Rename Node " + node.getLabel());
         renameItem.addActionListener(ev -> editNodeLabel(node));
         menu.add(renameItem);
 
@@ -219,7 +219,8 @@ class GraphPanel extends JPanel {
             return;
         }
 
-        dijkstraPath = pathNodes.stream().map(UNode::getId).collect(Collectors.toList()).reversed();
+        // store the path node IDs (no reversed() call)
+        dijkstraPath = pathNodes.stream().map(UNode::getId).collect(Collectors.toList());
 
         animateDijkstraPath(pathNodes);
 
@@ -408,12 +409,12 @@ class GraphPanel extends JPanel {
 
         String algoResult = dijkstraPath != null ? "Shortest Path: " + getPathString(dijkstraPath.stream().map(graph::getNodeById).collect(Collectors.toList())) : "";
 
-        g2d.drawString("🎯 Mode: Dynamic Weighted Undirected Graph", 20, getHeight() - 60);
-        g2d.drawString("🔵 Nodes: " + graph.getNodes().size(), 20, getHeight() - 40);
-        g2d.drawString("➡ Result: " + algoResult, 20, getHeight() - 20);
+        g2d.drawString("Mode: Dynamic Weighted Undirected Graph", 20, getHeight() - 60);
+        g2d.drawString("Nodes: " + graph.getNodes().size(), 20, getHeight() - 40);
+        g2d.drawString("Result: " + algoResult, 20, getHeight() - 20);
 
         g2d.setColor(Color.WHITE);
-        g2d.drawString("💡 Double-click node to rename", getWidth() - 300, getHeight() - 40);
-        g2d.drawString("🖱 Drag nodes to move, Right-click to Delete", getWidth() - 300, getHeight() - 20);
+        g2d.drawString("Double-click node to rename", getWidth() - 300, getHeight() - 40);
+        g2d.drawString("Drag nodes to move, Right-click to Delete", getWidth() - 300, getHeight() - 20);
     }
 }

@@ -17,20 +17,20 @@ class ControlPanel extends JPanel {
         setPreferredSize(new Dimension(280, 800));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        add(createTitleLabel("🛠️ Graph Management"));
+        add(createTitleLabel("Graph Management"));
         add(Box.createVerticalStrut(15));
         add(createDivider());
 
-        addNodeButton = createControlButton("➕ Add Node (Click Canvas)", new Color(60, 170, 100));
+        addNodeButton = createControlButton("Add Node (Click Canvas)", new Color(60, 170, 100));
         addNodeButton.addActionListener(e -> graphPanel.setMode(GraphPanel.Mode.ADDING_NODE));
         add(addNodeButton);
         add(Box.createVerticalStrut(15));
-        add(new JLabel("💡 Right-click an existing node to delete it.", SwingConstants.CENTER)).setForeground(Color.LIGHT_GRAY);
+        add(new JLabel("Right-click an existing node to delete it.", SwingConstants.CENTER)).setForeground(Color.LIGHT_GRAY);
         add(Box.createVerticalStrut(20));
         add(createDivider());
         add(Box.createVerticalStrut(20));
 
-        add(createTitleLabel("🔗 Add Weighted Edge"));
+        add(createTitleLabel("Add Weighted Edge"));
         add(Box.createVerticalStrut(10));
 
         sourceNodeCombo = createNodeComboBox();
@@ -46,7 +46,7 @@ class ControlPanel extends JPanel {
         add(createLabelPanel("Weight:", weightField));
         add(Box.createVerticalStrut(15));
 
-        addEdgeButton = createControlButton("➡️ Connect Nodes", new Color(200, 120, 50));
+        addEdgeButton = createControlButton("Connect Nodes", new Color(200, 120, 50));
         addEdgeButton.addActionListener(e -> addEdge());
         add(addEdgeButton);
 
