@@ -1,0 +1,100 @@
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+class BoardPanel extends JPanel {
+    private final Board board;
+    private final GameEngine gameEngine;
+
+    public BoardPanel(Board board, GameEngine gameEngine) {
+        this.board = board;
+        this.gameEngine = gameEngine;
+        setBackground(new Color(30, 40, 60));
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        drawNodes(g2d);
+        drawConnections(g2d);
+        drawPlayers(g2d);
+    }
+
+    private void drawNodes(Graphics2D g2d) {
+        int size = BoardNode.SIZE;
+        g2d.setFont(new Font("Arial", Font.BOLD, 18));
+
+        for (BoardNode node : board.getNodes()) {
+            int x = node.getX();
+            int y = node.getY();
+
+            g2d.setColor(node.getId() == board.getTotalNodes() ? new Color(60, 180, 75) :
+                    node.getId() == 1 ? new Color(180, 60, 75) :
+                            new Color(240, 240, 240));
+            g2d.fillRect(x, y, size, size);
+            g2d.setColor(Color.DARK_GRAY);
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRect(x, y, size, size);
+
+            String label = String.valueOf(node.getId());
+            FontMetrics fm = g2d.getFontMetrics();
+            int textX = x + (size - fm.stringWidth(label)) / 2;
+            int textY = y + (size + fm.getAscent()) / 2 - 4;
+            g2d.setColor(Color.BLACK);
+            g2d.drawString(label, textX, textY);
+        }
+    }
+
+    private void drawConnections(Graphics2D g2d) {
+        g2d.setStroke(new BasicStroke(1));
+        g2d.setColor(new Color(100, 100, 100));
+
+        for (int i = 0; i < board.getNodes().size() - 1; i++) {
+            BoardNode n1 = board.getNodes().get(i);
+            BoardNode n2 = board.getNodes().get(i + 1);
+
+            int x1 = n1.getX() + n1.getSize() / 2;
+            int y1 = n1.getY() + n1.getSize() / 2;
+            int x2 = n2.getX() + n2.getSize() / 2;
+            int y2 = n2.getY() + n2.getSize() / 2;
+
+            g2d.drawLine(x1, y1, x2, y2);
+        }
+    }
+
+    private void drawPlayers(Graphics2D g2d) {
+        int playerSize = 18;
+        for (BoardNode node : board.getNodes()) {
+            List<Player> players = node.getOccupyingPlayers();
+            if (players.isEmpty()) continue;
+
+            int nodeX = node.getX() + node.getSize() / 2;
+            int nodeY = node.getY() + node.getSize() / 2;
+
+            int offset = (players.size() - 1) * 10;
+
+            for (int i = 0; i < players.size(); i++) {
+                Player player = players.get(i);
+
+                int drawX = nodeX + i * 20 - offset;
+                int drawY = nodeY;
+
+                g2d.setColor(player.getColor());
+                g2d.fillOval(drawX - playerSize / 2, drawY - playerSize / 2, playerSize, playerSize);
+
+                g2d.setColor(Color.WHITE);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawOval(drawX - playerSize / 2, drawY - playerSize / 2, playerSize, playerSize);
+
+                if (player == gameEngine.getCurrentPlayer()) {
+                    g2d.setColor(Color.YELLOW);
+                    g2d.setStroke(new BasicStroke(4));
+                    g2d.drawOval(drawX - playerSize / 2 - 2, drawY - playerSize / 2 - 2, playerSize + 4, playerSize + 4);
+                }
+            }
+        }
+    }
+}
