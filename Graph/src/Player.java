@@ -2,7 +2,7 @@ import java.awt.Color;
 
 class Player {
     private final String name;
-    private int currentPosition; // Node ID (1 to 64)
+    private int currentPosition; // Node ID (0 means outside, 1..N are board nodes)
     private final Color color;
     private final boolean isAI;
 
@@ -13,7 +13,7 @@ class Player {
     // new constructor to mark AI players
     public Player(String name, Color color, boolean isAI) {
         this.name = name;
-        this.currentPosition = 1; // Mulai dari node 1
+        this.currentPosition = 0; // start outside (node 0)
         this.color = color;
         this.isAI = isAI;
     }

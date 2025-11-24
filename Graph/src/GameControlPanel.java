@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Random;
 import javax.swing.Timer;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 class GameControlPanel extends JPanel {
     private GameEngine gameEngine;
@@ -14,6 +16,7 @@ class GameControlPanel extends JPanel {
 
     // status label shown under dice/result to indicate current player's position/status
     private JLabel statusLabel;
+    // Note: game log UI moved to GameVisualizer; GameControlPanel will forward log/clear calls.
 
     private GameVisualizer mainApp;
     private JSpinner nodesSpinner;
@@ -96,6 +99,8 @@ class GameControlPanel extends JPanel {
         add(statusLabel);
         add(Box.createVerticalStrut(10));
 
+        // game log is shown in GameVisualizer (opposite side). This panel will forward logs.
+
         add(Box.createVerticalGlue());
     }
 
@@ -139,6 +144,8 @@ class GameControlPanel extends JPanel {
         // The dice square inside remains neutral; pips and pip color are changed.
         diceAnimationPanel = new DiceAnimationPanel();
         diceAnimationPanel.setPreferredSize(new Dimension(200, 140));
+        // make dice panel opaque so the dice square is visible
+        diceAnimationPanel.setOpaque(true);
 
         JPanel container = new JPanel(new GridBagLayout());
         container.setBackground(BG_DARK.brighter());
@@ -385,5 +392,19 @@ class GameControlPanel extends JPanel {
             g2.dispose();
         }
     }
-}
 
+    // Appends a timestamped line to the game log (thread-safe)
+    public void log(String message) {
+        // Forward log request to main application which holds the game log UI
+        if (mainApp != null) {
+            mainApp.appendToGameLog(message);
+        }
+    }
+
+    // Clears the game log
+    public void clearLog() {
+        if (mainApp != null) {
+            mainApp.clearGameLog();
+        }
+    }
+}

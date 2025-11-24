@@ -5,6 +5,8 @@ import java.util.Collections;
 class Board {
     private final int totalNodes;
     private List<BoardNode> nodes;
+    // extra outside node (id = 0) where players start before entering node 1
+    private BoardNode outsideNode;
     private final int NODES_PER_ROW = 8;
     // No padding/spacing so nodes are contiguous (touching)
     private final int PADDING = 0;
@@ -14,6 +16,8 @@ class Board {
         this.totalNodes = totalNodes;
         this.nodes = new ArrayList<>();
         initializeBoardNodes();
+        // create an "outside" node with id 0 positioned off-screen (won't be drawn)
+        outsideNode = new BoardNode(0, -BoardNode.SIZE - 20, -BoardNode.SIZE - 20);
     }
 
     private void initializeBoardNodes() {
@@ -53,11 +57,16 @@ class Board {
     }
 
     public BoardNode getNodeById(int id) {
+        // id == 0 -> outside node
+        if (id == 0) return outsideNode;
         if (id >= 1 && id <= totalNodes) {
             return nodes.get(id - 1);
         }
         return null;
     }
+
+    // expose outside node for clarity if needed
+    public BoardNode getOutsideNode() { return outsideNode; }
 
     public int getTotalNodes() { return totalNodes; }
     public List<BoardNode> getNodes() { return nodes; }

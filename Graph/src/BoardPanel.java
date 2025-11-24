@@ -60,7 +60,36 @@ class BoardPanel extends JPanel {
             int textY = y + (size + fm.getAscent()) / 2 - 4;
             g2d.setColor(Color.BLACK);
             g2d.drawString(label, textX, textY);
+
+            // Draw star icon for nodes that are multiples of 5
+            if (node.getId() % 5 == 0 && node.getId() != 1 && node.getId() != board.getTotalNodes()) {
+                int starCx = x + size - 12;
+                int starCy = y + 12;
+                int outerR = 8;
+                int innerR = 4;
+                drawStar(g2d, starCx, starCy, outerR, innerR, new Color(255, 215, 0)); // gold star
+            }
         }
+    }
+
+    // Draw a 5-point star centered at (cx,cy)
+    private void drawStar(Graphics2D g2d, int cx, int cy, int outerR, int innerR, Color color) {
+        double angle = Math.PI / 2 * 3;
+        int points = 5;
+        int[] xs = new int[points * 2];
+        int[] ys = new int[points * 2];
+        for (int i = 0; i < points * 2; i++) {
+            int r = (i % 2 == 0) ? outerR : innerR;
+            xs[i] = cx + (int) Math.round(Math.cos(angle) * r);
+            ys[i] = cy + (int) Math.round(Math.sin(angle) * r);
+            angle += Math.PI / points;
+        }
+        Polygon star = new Polygon(xs, ys, xs.length);
+        g2d.setColor(color);
+        g2d.fillPolygon(star);
+        g2d.setColor(Color.DARK_GRAY);
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawPolygon(star);
     }
 
     // Connections are intentionally disabled (no connecting lines)

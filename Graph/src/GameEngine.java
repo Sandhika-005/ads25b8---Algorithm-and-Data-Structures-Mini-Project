@@ -20,6 +20,13 @@ class GameEngine {
     private static final double GREEN_PROBABILITY = 0.8;
     private static final int MAX_PLAYERS = 5;
 
+    // Timing / animation constants
+    private static final int ANIMATION_DURATION = 1500;
+    private static final int MOVEMENT_INTERVAL = 350;
+    private static final int AI_DELAY_MS = 800;
+
+    private final Random rng = new Random();
+
     public GameEngine(Board board, GameVisualizer mainApp) {
         this.board = board;
         this.mainApp = mainApp;
@@ -33,7 +40,7 @@ class GameEngine {
 
     // --- Inisialisasi Pemain ---
     public void promptForPlayers() {
-        // Ask for number of human players and AI players
+        // Ask for number of human players and AI players (kept behavior but clearer)
         try {
             String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain manusia (min 1):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
             if (sh == null) { System.exit(0); return; }
@@ -78,13 +85,27 @@ class GameEngine {
 
         Collections.shuffle(allPlayers);
 
+        // Clear and log game start
+        if (controlPanel != null) {
+            controlPanel.clearLog();
+            StringBuilder sb = new StringBuilder();
+            sb.append("Game started with players: ");
+            for (int i = 0; i < allPlayers.size(); i++) {
+                Player p = allPlayers.get(i);
+                sb.append(p.getName()).append(p.isAI() ? " (AI)" : "");
+                if (i < allPlayers.size() - 1) sb.append(", ");
+            }
+            controlPanel.log(sb.toString());
+        }
+
+        // place players on outside node (id 0) and enqueue
         for (Player p : allPlayers) {
             turnQueue.offer(p);
-            board.getNodeById(1).addPlayer(p);
+            placePlayerOnNode(p, 0);
         }
 
         currentPlayer = turnQueue.peek();
-        controlPanel.updateTurnInfo(currentPlayer);
+        if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
         mainApp.repaint();
         scheduleAutoRollIfNeeded();
     }
@@ -93,7 +114,7 @@ class GameEngine {
     private void scheduleAutoRollIfNeeded() {
         if (currentPlayer != null && currentPlayer.isAI()) {
             if (controlPanel != null) controlPanel.enableRollButton(false);
-            Timer t = new Timer(800, e -> {
+            Timer t = new Timer(AI_DELAY_MS, e -> {
                 ((Timer) e.getSource()).stop();
                 rollDiceAndMove();
             });
@@ -112,63 +133,47 @@ class GameEngine {
 
     // --- ANIMASI DADU ---
     private void startDiceAnimation() {
-        final int ANIMATION_DURATION = 1500;
         // Delegate the visual spin to the control panel which will call executeDiceRoll() when done
         if (controlPanel != null) {
             controlPanel.startDiceSpinAnimation(ANIMATION_DURATION, this::executeDiceRoll);
         } else {
-            // fallback if no control panel present
             executeDiceRoll();
         }
     }
 
     private void executeDiceRoll() {
         // 1. Roll Dadu (1-6)
-        int diceRoll = new Random().nextInt(6) + 1;
+        int diceRoll = rng.nextInt(6) + 1;
 
         // 2. Tentukan Arah (Green/Red)
-        double prob = new Random().nextDouble();
-        boolean isGreen = prob < GREEN_PROBABILITY;
-        String resultColor = isGreen ? "GREEN" : "RED";
-        int moveDirection = isGreen ? 1 : -1;
+        boolean isGreen = rng.nextDouble() < GREEN_PROBABILITY;
+         String resultColor = isGreen ? "GREEN" : "RED";
+         int moveDirection = isGreen ? 1 : -1;
 
-        // Tampilkan hasil akhir ke ControlPanel
-        controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
+         // Log roll result
+        if (currentPlayer != null) log(currentPlayer.getName() + " rolled " + diceRoll + " (" + resultColor + ")");
 
-        // 3. Masukkan Langkah ke Stack
-        movementStack.clear();
-        for (int i = 0; i < diceRoll; i++) {
-            movementStack.push(moveDirection);
-        }
+         // Tampilkan hasil akhir ke ControlPanel
+        if (controlPanel != null) controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
 
-        // 4. Jalankan Animasi Gerakan Pemain
-        startMovementAnimation();
-    }
-    // --- AKHIR ANIMASI DADU ---
+         // 3. Masukkan Langkah ke Stack
+         movementStack.clear();
+         for (int i = 0; i < diceRoll; i++) {
+             movementStack.push(moveDirection);
+         }
 
-    private void startMovementAnimation() {
-        Timer timer = new Timer(350, null);
+         // 4. Jalankan Animasi Gerakan Pemain
+         startMovementAnimation();
+     }
+     // --- AKHIR ANIMASI DADU ---
+
+     private void startMovementAnimation() {
+        Timer timer = new Timer(MOVEMENT_INTERVAL, null);
         timer.addActionListener(e -> {
             if (movementStack.isEmpty()) {
                 ((Timer) e.getSource()).stop();
-
                 checkWinCondition();
-
-                Player finishedPlayer = turnQueue.poll();
-                if (finishedPlayer != null) {
-                    if (finishedPlayer.getCurrentPosition() < board.getTotalNodes()) {
-                        turnQueue.offer(finishedPlayer);
-                    }
-                    if (turnQueue.isEmpty()) {
-                        currentPlayer = null;
-                    } else {
-                        currentPlayer = turnQueue.peek();
-                    }
-                }
-
-                controlPanel.updateTurnInfo(currentPlayer);
-                controlPanel.enableRollButton(true);
-                scheduleAutoRollIfNeeded();
+                finalizeTurn();
             } else {
                 controlPanel.enableRollButton(false);
                 int direction = movementStack.pop();
@@ -176,12 +181,47 @@ class GameEngine {
             }
         });
         timer.start();
+     }
+
+    // finalize turn behavior: star extra-turn or rotate queue; update UI & schedule AI
+    private void finalizeTurn() {
+        Player acting = turnQueue.peek();
+        if (acting != null) {
+            int pos = acting.getCurrentPosition();
+            boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
+            if (landedStar) {
+                JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
+                log(acting.getName() + " landed on star node " + pos + " and gets an extra turn()");
+                // keep acting at front
+            } else {
+                Player finishedPlayer = turnQueue.poll();
+                if (finishedPlayer != null) {
+                    if (finishedPlayer.getCurrentPosition() < board.getTotalNodes()) {
+                        turnQueue.offer(finishedPlayer);
+                    }
+                    log(finishedPlayer.getName() + " turn ended.");
+                }
+            }
+        }
+
+        if (turnQueue.isEmpty()) {
+            currentPlayer = null;
+        } else {
+            currentPlayer = turnQueue.peek();
+            if (currentPlayer != null) log("Next: " + currentPlayer.getName() + (currentPlayer.isAI() ? " (AI)" : ""));
+        }
+
+        if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
+        if (controlPanel != null) controlPanel.enableRollButton(true);
+        scheduleAutoRollIfNeeded();
     }
 
-    private void movePlayerByOneStep(int direction) {
+     private void movePlayerByOneStep(int direction) {
+        if (currentPlayer == null) return;
         int oldPosId = currentPlayer.getCurrentPosition();
         int newPosId = oldPosId + direction;
 
+        // clamp to valid board node range (1..N)
         if (newPosId < 1) newPosId = 1;
         if (newPosId > board.getTotalNodes()) newPosId = board.getTotalNodes();
 
@@ -193,14 +233,29 @@ class GameEngine {
         BoardNode newNode = board.getNodeById(newPosId);
         if (newNode != null) newNode.addPlayer(currentPlayer);
 
+        log(currentPlayer.getName() + " moved from " + oldPosId + " to " + newPosId);
         mainApp.repaint();
-    }
+     }
 
-    private void checkWinCondition() {
-        if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
+     private void checkWinCondition() {
+         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
+            log(currentPlayer.getName() + " has won the game!");
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
-        }
+         }
+     }
+
+    // Helper: safely log via controlPanel
+    private void log(String msg) {
+        if (controlPanel != null) controlPanel.log(msg);
     }
 
-    public Player getCurrentPlayer() { return currentPlayer; }
+    // Helper: move player to nodeId (used at initialization)
+    private void placePlayerOnNode(Player p, int nodeId) {
+        BoardNode node = board.getNodeById(nodeId);
+        if (node != null) node.addPlayer(p);
+        p.setCurrentPosition(nodeId);
+    }
+
+     public Player getCurrentPlayer() { return currentPlayer; }
 }
+
