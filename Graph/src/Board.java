@@ -14,28 +14,27 @@ class Board {
     }
 
     private void initializeBoardNodes() {
-        int index = 1;
         int totalRows = totalNodes / NODES_PER_ROW;
+        int nodeId = 1;
 
-        // Pola Ular Tangga, dimulai dari bawah (Node 1)
+        // Baris pertama kekanan (kiri ke kanan), kedua kekiri (kanan ke kiri), dst
         for (int row = 0; row < totalRows; row++) {
             int actualRow = totalRows - 1 - row;
-            boolean rightToLeft = (actualRow % 2 != 0);
+            boolean leftToRight = (row % 2 == 0); // baris genap (mulai dari 0) kekanan
 
             for (int col = 0; col < NODES_PER_ROW; col++) {
-                if (index > totalNodes) break;
+                if (nodeId > totalNodes) break;
 
                 int nodeX;
-                // Node 1 di baris paling bawah, sehingga Y terbesar
                 int nodeY = PADDING + actualRow * (BoardNode.SIZE + 10);
 
-                if (!rightToLeft) {
+                if (leftToRight) {
                     nodeX = PADDING + col * (BoardNode.SIZE + 10);
                 } else {
                     nodeX = PADDING + (NODES_PER_ROW - 1 - col) * (BoardNode.SIZE + 10);
                 }
 
-                nodes.add(new BoardNode(index++, nodeX, nodeY));
+                nodes.add(new BoardNode(nodeId++, nodeX, nodeY));
             }
         }
     }
