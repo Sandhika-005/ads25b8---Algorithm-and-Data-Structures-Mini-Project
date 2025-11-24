@@ -1,11 +1,14 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 class Board {
     private final int totalNodes;
     private List<BoardNode> nodes;
     private final int NODES_PER_ROW = 8;
-    private final int PADDING = 70;
+    // Reduced padding and spacing to "dempet" nodes (closer together)
+    private final int PADDING = 20;
+    private final int SPACING = 8;
 
     public Board(int totalNodes) {
         this.totalNodes = totalNodes;
@@ -14,27 +17,32 @@ class Board {
     }
 
     private void initializeBoardNodes() {
+        int correctedNodeId = 1;
         int totalRows = totalNodes / NODES_PER_ROW;
-        int nodeId = 1;
 
-        // Baris pertama kekanan (kiri ke kanan), kedua kekiri (kanan ke kiri), dst
+        // Loop dari baris paling ATAS (row = 0) hingga paling BAWAH (row = 7)
         for (int row = 0; row < totalRows; row++) {
-            int actualRow = totalRows - 1 - row;
-            boolean leftToRight = (row % 2 == 0); // baris genap (mulai dari 0) kekanan
+
+            // visualRow: Menghitung baris dari perspektif GUI (0=Atas, 7=Bawah)
+            int visualRow = totalRows - 1 - row;
+            int nodeY = PADDING + visualRow * (BoardNode.SIZE + SPACING);
+
+            boolean rightToLeft = (row % 2 != 0);
 
             for (int col = 0; col < NODES_PER_ROW; col++) {
-                if (nodeId > totalNodes) break;
 
                 int nodeX;
-                int nodeY = PADDING + actualRow * (BoardNode.SIZE + 10);
 
-                if (leftToRight) {
-                    nodeX = PADDING + col * (BoardNode.SIZE + 10);
+                if (!rightToLeft) {
+                    // Baris 0, 2, 4, 6 (dari atas) = Baris 7, 5, 3, 1 (dari bawah): Kiri ke Kanan
+                    nodeX = PADDING + col * (BoardNode.SIZE + SPACING);
                 } else {
-                    nodeX = PADDING + (NODES_PER_ROW - 1 - col) * (BoardNode.SIZE + 10);
+                    // Baris 1, 3, 5, 7 (dari atas) = Baris 6, 4, 2, 0 (dari bawah): Kanan ke Kiri
+                    nodeX = PADDING + (NODES_PER_ROW - 1 - col) * (BoardNode.SIZE + SPACING);
                 }
 
-                nodes.add(new BoardNode(nodeId++, nodeX, nodeY));
+                // Simpan node dengan ID berurutan 1 hingga 64
+                nodes.add(new BoardNode(correctedNodeId++, nodeX, nodeY));
             }
         }
     }

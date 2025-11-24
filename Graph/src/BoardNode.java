@@ -5,6 +5,7 @@ import java.util.List;
 class BoardNode {
     private final int id;
     private int x, y;
+    // PERBAIKAN: SIZE diubah menjadi public agar bisa diakses di Board dan BoardPanel
     public static final int SIZE = 60;
     private Color color;
     private List<Player> occupyingPlayers;

@@ -19,7 +19,6 @@ class BoardPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         drawNodes(g2d);
-        drawConnections(g2d);
         drawPlayers(g2d);
     }
 
@@ -31,9 +30,25 @@ class BoardPanel extends JPanel {
             int x = node.getX();
             int y = node.getY();
 
-            g2d.setColor(node.getId() == board.getTotalNodes() ? new Color(60, 180, 75) :
-                    node.getId() == 1 ? new Color(180, 60, 75) :
-                            new Color(240, 240, 240));
+            // Pewarnaan seperti papan catur
+            Color baseColor;
+            if (node.getId() % 2 == 0) {
+                baseColor = new Color(220, 230, 240);
+            } else {
+                baseColor = new Color(190, 210, 230);
+            }
+
+            g2d.setColor(baseColor);
+
+            // Warna khusus untuk Start/Finish
+            if (node.getId() == board.getTotalNodes()) {
+                g2d.setColor(new Color(60, 180, 75)); // Finish (Hijau Tua)
+            } else if (node.getId() == 1) {
+                g2d.setColor(new Color(180, 60, 75)); // Start (Merah Tua)
+            } else {
+                g2d.setColor(baseColor);
+            }
+
             g2d.fillRect(x, y, size, size);
             g2d.setColor(Color.DARK_GRAY);
             g2d.setStroke(new BasicStroke(2));
@@ -48,21 +63,9 @@ class BoardPanel extends JPanel {
         }
     }
 
+    // Connections are intentionally disabled (no connecting lines)
     private void drawConnections(Graphics2D g2d) {
-        g2d.setStroke(new BasicStroke(1));
-        g2d.setColor(new Color(100, 100, 100));
-
-        for (int i = 0; i < board.getNodes().size() - 1; i++) {
-            BoardNode n1 = board.getNodes().get(i);
-            BoardNode n2 = board.getNodes().get(i + 1);
-
-            int x1 = n1.getX() + n1.getSize() / 2;
-            int y1 = n1.getY() + n1.getSize() / 2;
-            int x2 = n2.getX() + n2.getSize() / 2;
-            int y2 = n2.getY() + n2.getSize() / 2;
-
-            g2d.drawLine(x1, y1, x2, y2);
-        }
+        // no-op
     }
 
     private void drawPlayers(Graphics2D g2d) {
@@ -80,19 +83,18 @@ class BoardPanel extends JPanel {
                 Player player = players.get(i);
 
                 int drawX = nodeX + i * 20 - offset;
-                int drawY = nodeY;
 
                 g2d.setColor(player.getColor());
-                g2d.fillOval(drawX - playerSize / 2, drawY - playerSize / 2, playerSize, playerSize);
+                g2d.fillOval(drawX - playerSize / 2, nodeY - playerSize / 2, playerSize, playerSize);
 
                 g2d.setColor(Color.WHITE);
                 g2d.setStroke(new BasicStroke(2));
-                g2d.drawOval(drawX - playerSize / 2, drawY - playerSize / 2, playerSize, playerSize);
+                g2d.drawOval(drawX - playerSize / 2, nodeY - playerSize / 2, playerSize, playerSize);
 
                 if (player == gameEngine.getCurrentPlayer()) {
                     g2d.setColor(Color.YELLOW);
                     g2d.setStroke(new BasicStroke(4));
-                    g2d.drawOval(drawX - playerSize / 2 - 2, drawY - playerSize / 2 - 2, playerSize + 4, playerSize + 4);
+                    g2d.drawOval(drawX - playerSize / 2 - 2, nodeY - playerSize / 2 - 2, playerSize + 4, playerSize + 4);
                 }
             }
         }

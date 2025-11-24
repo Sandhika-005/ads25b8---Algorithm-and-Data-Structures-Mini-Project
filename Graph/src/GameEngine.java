@@ -1,6 +1,7 @@
 import javax.swing.*;
-import javax.swing.Timer;
+import javax.swing.Timer; // WAJIB: Gunakan Swing Timer
 import java.awt.*;
+
 import java.util.*;
 import java.util.List;
 
@@ -34,7 +35,7 @@ class GameEngine {
     public void promptForPlayers() {
         String input = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain (min 2, max " + MAX_PLAYERS + "):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
         if (input == null || input.trim().isEmpty()) {
-            System.exit(0); // Keluar jika dibatalkan
+            System.exit(0);
             return;
         }
         try {
@@ -79,23 +80,57 @@ class GameEngine {
     public void rollDiceAndMove() {
         if (currentPlayer == null || !movementStack.isEmpty()) return;
 
+        controlPanel.enableRollButton(false);
+        startDiceAnimation();
+    }
+
+    // --- ANIMASI DADU ---
+    private void startDiceAnimation() {
+        final int ANIMATION_DURATION = 1500;
+        final int UPDATE_INTERVAL = 100;
+
+        Timer animationTimer = new Timer(UPDATE_INTERVAL, null);
+        final int totalSteps = ANIMATION_DURATION / UPDATE_INTERVAL;
+        final int[] stepCount = {0};
+
+        animationTimer.addActionListener(e -> {
+            if (stepCount[0] < totalSteps) {
+                // Tampilkan angka acak (1-6) selama animasi
+                int tempRoll = new Random().nextInt(6) + 1;
+                controlPanel.updateDiceAnimation(tempRoll);
+                stepCount[0]++;
+            } else {
+                // Animasi selesai, eksekusi hasil
+                animationTimer.stop();
+                executeDiceRoll();
+            }
+        });
+        animationTimer.start();
+    }
+
+    private void executeDiceRoll() {
+        // 1. Roll Dadu (1-6)
         int diceRoll = new Random().nextInt(6) + 1;
 
+        // 2. Tentukan Arah (Green/Red)
         double prob = new Random().nextDouble();
         boolean isGreen = prob < GREEN_PROBABILITY;
         String resultColor = isGreen ? "GREEN" : "RED";
         int moveDirection = isGreen ? 1 : -1;
 
-        controlPanel.updateDiceResult(diceRoll, resultColor);
+        // Tampilkan hasil akhir ke ControlPanel
+        controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
 
-        // Data Structure: Stack (menyimpan langkah-langkah)
+        // 3. Masukkan Langkah ke Stack
         movementStack.clear();
         for (int i = 0; i < diceRoll; i++) {
             movementStack.push(moveDirection);
         }
 
+        // 4. Jalankan Animasi Gerakan Pemain
         startMovementAnimation();
     }
+    // --- AKHIR ANIMASI DADU ---
 
     private void startMovementAnimation() {
         Timer timer = new Timer(350, null);
@@ -103,16 +138,13 @@ class GameEngine {
             if (movementStack.isEmpty()) {
                 ((Timer) e.getSource()).stop();
 
-                // Cek menang, lalu pindah giliran
                 checkWinCondition();
 
                 Player finishedPlayer = turnQueue.poll();
                 if (finishedPlayer != null) {
-                    // Hanya masukkan kembali ke Queue jika pemain belum menang
                     if (finishedPlayer.getCurrentPosition() < board.getTotalNodes()) {
                         turnQueue.offer(finishedPlayer);
                     }
-                    // Jika Queue kosong setelah pemenang, permainan selesai.
                     if (turnQueue.isEmpty()) {
                         currentPlayer = null;
                     } else {
@@ -124,7 +156,6 @@ class GameEngine {
                 controlPanel.enableRollButton(true);
             } else {
                 controlPanel.enableRollButton(false);
-                // Data Structure: Stack (mengambil langkah dari atas)
                 int direction = movementStack.pop();
                 movePlayerByOneStep(direction);
             }
@@ -136,11 +167,9 @@ class GameEngine {
         int oldPosId = currentPlayer.getCurrentPosition();
         int newPosId = oldPosId + direction;
 
-        // Batasan papan
         if (newPosId < 1) newPosId = 1;
         if (newPosId > board.getTotalNodes()) newPosId = board.getTotalNodes();
 
-        // Update posisi
         BoardNode oldNode = board.getNodeById(oldPosId);
         if (oldNode != null) oldNode.removePlayer(currentPlayer);
 
@@ -155,7 +184,6 @@ class GameEngine {
     private void checkWinCondition() {
         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
-            // Pemenang akan dihapus dari Queue di logika startMovementAnimation
         }
     }
 
