@@ -27,6 +27,10 @@ class UEdge {
         return weight;
     }
 
+    public void setWeight(int weight) {
+        this.weight = weight;
+    }
+
     public Color getColor() {
         return color;
     }

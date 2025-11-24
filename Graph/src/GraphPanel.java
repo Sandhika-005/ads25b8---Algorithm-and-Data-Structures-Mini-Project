@@ -91,8 +91,16 @@ class GraphPanel extends JPanel {
                     }
                 } else if (e.getClickCount() == 2 && clickedNode != null) {
                     editNodeLabel(clickedNode);
-                } else if (SwingUtilities.isRightMouseButton(e) && clickedNode != null) {
-                    showRightClickMenu(e, clickedNode);
+                } else if (SwingUtilities.isRightMouseButton(e)) {
+                    if (clickedNode != null) {
+                        showRightClickMenu(e, clickedNode);
+                    } else {
+                        // if not clicking a node, check for an edge under cursor
+                        UEdge clickedEdge = findEdgeAt(e.getX(), e.getY());
+                        if (clickedEdge != null) {
+                            showEdgeContextMenu(e, clickedEdge);
+                        }
+                    }
                 }
             }
         });
@@ -137,23 +145,101 @@ class GraphPanel extends JPanel {
         renameItem.addActionListener(ev -> editNodeLabel(node));
         menu.add(renameItem);
 
-        if (graph.getEdges().stream().anyMatch(edge -> edge.connects(node, edge.getTarget()) || edge.connects(node, edge.getSource()))) {
-            menu.addSeparator();
-            JLabel subtitle = new JLabel("Delete Adjacent Edge:");
-            subtitle.setFont(new Font("Arial", Font.BOLD, 12));
-            menu.add(subtitle);
-
-            for (UEdge edge : graph.getEdges()) {
-                if (edge.connects(node, edge.getTarget())) {
-                    UNode neighbor = edge.getSource().equals(node) ? edge.getTarget() : edge.getSource();
-                    JMenuItem deleteEdgeItem = new JMenuItem("  - To " + neighbor.getLabel() + " (W:" + edge.getWeight() + ")");
-                    deleteEdgeItem.addActionListener(ev -> deleteEdge(edge));
-                    menu.add(deleteEdgeItem);
+        // list adjacent edges properly and provide delete/edit-weight options
+        boolean anyAdjacent = false;
+        for (UEdge edge : graph.getEdges()) {
+            if (edge.getSource().equals(node) || edge.getTarget().equals(node)) {
+                if (!anyAdjacent) {
+                    menu.addSeparator();
+                    JLabel subtitle = new JLabel("Adjacent Edges:");
+                    subtitle.setFont(new Font("Arial", Font.BOLD, 12));
+                    menu.add(subtitle);
+                    anyAdjacent = true;
                 }
+                UNode neighbor = edge.getSource().equals(node) ? edge.getTarget() : edge.getSource();
+                JMenuItem deleteEdgeItem = new JMenuItem("Delete edge to " + neighbor.getLabel() + " (W:" + edge.getWeight() + ")");
+                deleteEdgeItem.addActionListener(ev -> deleteEdge(edge));
+                menu.add(deleteEdgeItem);
+
+                JMenuItem editWeightItem = new JMenuItem("Edit weight to " + neighbor.getLabel() + " (W:" + edge.getWeight() + ")");
+                editWeightItem.addActionListener(ev -> editEdgeWeight(edge));
+                menu.add(editWeightItem);
             }
         }
 
         menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    // New: context menu when right-click directly on an edge
+    private void showEdgeContextMenu(MouseEvent e, UEdge edge) {
+        JPopupMenu menu = new JPopupMenu();
+
+        String label = edge.getSource().getLabel() + " ↔ " + edge.getTarget().getLabel();
+        JMenuItem info = new JMenuItem("Edge " + label + " (W:" + edge.getWeight() + ")");
+        info.setEnabled(false);
+        menu.add(info);
+
+        JMenuItem editWeight = new JMenuItem("Edit Weight...");
+        editWeight.addActionListener(ev -> editEdgeWeight(edge));
+        menu.add(editWeight);
+
+        JMenuItem delete = new JMenuItem("Delete Edge");
+        delete.addActionListener(ev -> deleteEdge(edge));
+        menu.add(delete);
+
+        menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    // New: allow changing edge weight with validation, then repaint
+    private void editEdgeWeight(UEdge edge) {
+        String current = String.valueOf(edge.getWeight());
+        String input = (String) JOptionPane.showInputDialog(this,
+                "Enter new weight for edge " + edge.getSource().getLabel() + " ↔ " + edge.getTarget().getLabel() + ":",
+                "Edit Edge Weight",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                null,
+                current);
+        if (input == null) return;
+        try {
+            int w = Integer.parseInt(input.trim());
+            if (w <= 0) {
+                JOptionPane.showMessageDialog(this, "Weight must be a positive integer.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            edge.setWeight(w);
+            resetVisualization();
+            repaint();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid number.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // New: detect an edge near the given point (distance to segment)
+    private UEdge findEdgeAt(int px, int py) {
+        final double THRESH = 8.0; // pixels tolerance
+        for (UEdge edge : graph.getEdges()) {
+            UNode a = edge.getSource();
+            UNode b = edge.getTarget();
+            double ax = a.getX(), ay = a.getY();
+            double bx = b.getX(), by = b.getY();
+            double abx = bx - ax, aby = by - ay;
+            double apx = px - ax, apy = py - ay;
+            double ab2 = abx * abx + aby * aby;
+            if (ab2 == 0) continue;
+            double t = (apx * abx + apy * aby) / ab2;
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+            double cx = ax + t * abx;
+            double cy = ay + t * aby;
+            double dx = px - cx;
+            double dy = py - cy;
+            double dist2 = dx * dx + dy * dy;
+            if (dist2 <= THRESH * THRESH) {
+                return edge;
+            }
+        }
+        return null;
     }
 
     private void deleteNode(UNode node) {
