@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+import java.util.Map;
 
 class BoardPanel extends JPanel {
     private final Board board;
@@ -19,6 +20,7 @@ class BoardPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         drawNodes(g2d);
+        drawConnections(g2d); // Pastikan ini dipanggil
         drawPlayers(g2d);
     }
 
@@ -92,9 +94,37 @@ class BoardPanel extends JPanel {
         g2d.drawPolygon(star);
     }
 
-    // Connections are intentionally disabled (no connecting lines)
+    // Menggambar garis koneksi (Tangga/Ular)
     private void drawConnections(Graphics2D g2d) {
-        // no-op
+        Map<Integer, Integer> connections = board.getConnections();
+        g2d.setStroke(new BasicStroke(4));
+
+        for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
+            int startId = entry.getKey();
+            int endId = entry.getValue();
+
+            BoardNode startNode = board.getNodeById(startId);
+            BoardNode endNode = board.getNodeById(endId);
+
+            if (startNode == null || endNode == null) continue;
+
+            int x1 = startNode.getX() + BoardNode.SIZE / 2;
+            int y1 = startNode.getY() + BoardNode.SIZE / 2;
+            int x2 = endNode.getX() + BoardNode.SIZE / 2;
+            int y2 = endNode.getY() + BoardNode.SIZE / 2;
+
+            // Warna: Hijau untuk Tangga (Naik), Merah untuk Ular (Turun)
+            if (endId > startId) {
+                g2d.setColor(new Color(0, 180, 0, 180)); // Hijau Transparan
+            } else {
+                g2d.setColor(new Color(200, 0, 0, 180)); // Merah Transparan
+            }
+
+            g2d.drawLine(x1, y1, x2, y2);
+
+            // Gambar lingkaran kecil di tujuan
+            g2d.fillOval(x2 - 6, y2 - 6, 12, 12);
+        }
     }
 
     private void drawPlayers(Graphics2D g2d) {

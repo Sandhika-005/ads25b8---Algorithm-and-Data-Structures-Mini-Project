@@ -2,8 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Random;
 import javax.swing.Timer;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 
 class GameControlPanel extends JPanel {
     private GameEngine gameEngine;
@@ -13,10 +11,7 @@ class GameControlPanel extends JPanel {
     private JPanel diceResultPanel;
     private JLabel colorDirectionLabel;
     private DiceAnimationPanel diceAnimationPanel;
-
-    // status label shown under dice/result to indicate current player's position/status
     private JLabel statusLabel;
-    // Note: game log UI moved to GameVisualizer; GameControlPanel will forward log/clear calls.
 
     private GameVisualizer mainApp;
     private JSpinner nodesSpinner;
@@ -52,7 +47,6 @@ class GameControlPanel extends JPanel {
         applyNodesButton = createControlButton("APPLY NODES", ACCENT_COLOR);
         applyNodesButton.addActionListener(e -> {
             int nodes = (int) nodesSpinner.getValue();
-            // delegate to main application to rebuild board/game
             if (mainApp != null) mainApp.updateBoardNodeCount(nodes);
         });
         add(applyNodesButton);
@@ -85,7 +79,6 @@ class GameControlPanel extends JPanel {
         add(diceResultPanel);
         add(Box.createVerticalStrut(8));
 
-        // place "Langkah:" label outside the dice box (below the box)
         colorDirectionLabel = new JLabel("Langkah: -", SwingConstants.CENTER);
         colorDirectionLabel.setFont(new Font("Arial", Font.BOLD, 16));
         colorDirectionLabel.setForeground(Color.LIGHT_GRAY);
@@ -94,12 +87,9 @@ class GameControlPanel extends JPanel {
         add(colorDirectionLabel);
         add(Box.createVerticalStrut(10));
 
-        // Status label to show current player's node/position
         statusLabel = createStatusLabel("Status pemain: Posisi: Node 1", Color.LIGHT_GRAY, 14);
         add(statusLabel);
         add(Box.createVerticalStrut(10));
-
-        // game log is shown in GameVisualizer (opposite side). This panel will forward logs.
 
         add(Box.createVerticalGlue());
     }
@@ -140,37 +130,28 @@ class GameControlPanel extends JPanel {
     }
 
     private JPanel createUniqueDicePanel() {
-        // Create a container panel whose background will show the result color (red/green).
-        // The dice square inside remains neutral; pips and pip color are changed.
         diceAnimationPanel = new DiceAnimationPanel();
         diceAnimationPanel.setPreferredSize(new Dimension(200, 140));
-        // make dice panel opaque so the dice square is visible
-        diceAnimationPanel.setOpaque(true);
+        diceAnimationPanel.setOpaque(false); // Transparan agar background panel terlihat
 
         JPanel container = new JPanel(new GridBagLayout());
         container.setBackground(BG_DARK.brighter());
         container.setBorder(BorderFactory.createLineBorder(ACCENT_COLOR, 3));
         container.setAlignmentX(Component.CENTER_ALIGNMENT);
         container.setMaximumSize(new Dimension(240, 180));
-        container.add(diceAnimationPanel); // centered
+        container.add(diceAnimationPanel);
 
         return container;
     }
 
-    // Called by GameEngine: play a spin animation for durationMs then run onFinish (on EDT)
     public void startDiceSpinAnimation(int durationMs, Runnable onFinish) {
         if (diceAnimationPanel != null) {
-            // Ensure neutral appearance while spinning (no result color shown)
             diceAnimationPanel.setPipColor(Color.BLACK);
-            // neutral dice square while spinning
-            diceAnimationPanel.setDiceSquareColor(new Color(250, 250, 250));
             colorDirectionLabel.setText("Rolling...");
             colorDirectionLabel.setForeground(Color.WHITE);
-            if (diceResultPanel != null) diceResultPanel.setBackground(BG_DARK.brighter()); // result color stays on container
-            // start animation
+            if (diceResultPanel != null) diceResultPanel.setBackground(BG_DARK.brighter());
             diceAnimationPanel.startSpin(durationMs, onFinish);
         } else {
-            // fallback: directly run callback
             if (onFinish != null) SwingUtilities.invokeLater(onFinish);
         }
     }
@@ -188,20 +169,6 @@ class GameControlPanel extends JPanel {
         }
     }
 
-    public void updateDiceAnimation(int tempRoll) {
-        if (diceAnimationPanel != null) {
-            diceAnimationPanel.setFace(tempRoll);
-            colorDirectionLabel.setText("Rolling...");
-            colorDirectionLabel.setForeground(Color.WHITE);
-            if (diceResultPanel != null) diceResultPanel.setBackground(BG_DARK.brighter());
-            diceAnimationPanel.setPipColor(Color.BLACK);
-            diceAnimationPanel.setDiceSquareColor(new Color(250, 250, 250)); // keep neutral during spin
-            diceAnimationPanel.repaint();
-            boardPanel.repaint();
-        }
-    }
-
-    // Apply final dice result (called after spin finishes)
     public void updateDiceResult(int diceRoll, String resultColor, int moveDirection) {
         String directionText = (moveDirection == 1) ? "MAJU" : "MUNDUR";
         Color bgColor = "GREEN".equals(resultColor) ? GREEN_RESULT : RED_RESULT;
@@ -209,11 +176,8 @@ class GameControlPanel extends JPanel {
 
         if (diceAnimationPanel != null) {
             diceAnimationPanel.setFace(diceRoll);
-            // Apply result color to container (outside the dice square)
             if (diceResultPanel != null) diceResultPanel.setBackground(bgColor);
-            // Keep dice square neutral; use a contrasting pip color so pips remain visible.
             diceAnimationPanel.setPipColor(Color.BLACK);
-            diceAnimationPanel.setDiceSquareColor(new Color(250, 250, 250));
             colorDirectionLabel.setText("Langkah: " + diceRoll + " " + directionText);
             colorDirectionLabel.setForeground(fgColor);
             diceAnimationPanel.repaint();
@@ -235,36 +199,21 @@ class GameControlPanel extends JPanel {
         }
     }
 
-    private Component findComponentByName(Container container, String name) {
-        for (Component component : container.getComponents()) {
-            if (name.equals(component.getName())) {
-                return component;
-            }
-            if (component instanceof Container) {
-                Component found = findComponentByName((Container) component, name);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-
     /**
-     * Small inner panel that animates a rotating "dice" square and updates the face value.
-     * It uses a Swing Timer for animation and stops itself after durationMs, then invokes the callback.
+     * Panel Dadu dengan visualisasi 3D yang lebih bagus
      */
     private class DiceAnimationPanel extends JPanel {
         private Timer spinTimer;
         private final int spinInterval = 50;
         private final Random rnd = new Random();
-        private int face = 1; // current face 1..6
+        private int face = 1;
         private Color pipColor = Color.BLACK;
-        private Color diceSquareColor = new Color(250, 250, 250); // neutral square
-        private double animPhase = 0.0;     // drives pip motion
+        private double animPhase = 0.0;
         private boolean spinning = false;
 
         public DiceAnimationPanel() {
             setPreferredSize(new Dimension(200, 140));
-            setOpaque(false); // container provides background; dice square is drawn explicitly
+            setOpaque(false);
         }
 
         public void setFace(int f) {
@@ -276,11 +225,6 @@ class GameControlPanel extends JPanel {
 
         public void setPipColor(Color c) {
             this.pipColor = c != null ? c : Color.BLACK;
-            repaint();
-        }
-
-        public void setDiceSquareColor(Color c) {
-            this.diceSquareColor = (c != null) ? c : new Color(250, 250, 250);
             repaint();
         }
 
@@ -316,24 +260,35 @@ class GameControlPanel extends JPanel {
 
             int w = getWidth();
             int h = getHeight();
-            int side = Math.min(w, h) - 30;
-            int cx = w / 2;
-            int cy = h / 2 - 10;
-            int x = cx - side / 2;
-            int y = cy - side / 2;
+            int side = Math.min(w, h) - 40; // Sedikit lebih kecil agar muat shadow
+            int x = (w - side) / 2;
+            int y = (h - side) / 2 - 5;
+            int arc = 30; // Sudut lebih bulat
 
-            // draw static dice square (neutral)
-            g2.setColor(diceSquareColor);
-            g2.fillRoundRect(x, y, side, side, 10, 10);
-            g2.setColor(Color.DARK_GRAY);
-            g2.setStroke(new BasicStroke(2));
-            g2.drawRoundRect(x, y, side, side, 10, 10);
+            // 1. Gambar Bayangan Dadu
+            g2.setColor(new Color(0, 0, 0, 60));
+            g2.fillRoundRect(x + 5, y + 8, side, side, arc, arc);
 
-            // draw pips according to current face
+            // 2. Gambar Body Dadu dengan Gradasi (Efek 3D)
+            GradientPaint bodyGrad = new GradientPaint(
+                    x, y, Color.WHITE,
+                    x + side, y + side, new Color(220, 220, 220)
+            );
+            g2.setPaint(bodyGrad);
+            g2.fillRoundRect(x, y, side, side, arc, arc);
+
+            // 3. Highlight Putih di pojok kiri atas (Kilauan)
+            g2.setPaint(new Color(255, 255, 255, 150));
+            g2.fillRoundRect(x + 5, y + 5, side / 2, side / 2, arc, arc);
+
+            // 4. Border Halus
+            g2.setColor(new Color(180, 180, 180));
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.drawRoundRect(x, y, side, side, arc, arc);
+
+            // 5. Gambar Titik Dadu (Pips)
             g2.setColor(pipColor);
-            int pipRadius = Math.max(4, side / 12);
-            double jitterAmp = spinning ? Math.max(2, side / 40.0) : 0.0;
-            double scaleAmp = spinning ? 1.0 + Math.abs(Math.sin(animPhase)) * 0.25 : 1.0;
+            int pipRadius = side / 10;
             int ox = x + side / 6;
             int oy = y + side / 6;
             int mx = x + side / 2;
@@ -342,69 +297,32 @@ class GameControlPanel extends JPanel {
             int by = y + side - side / 6;
 
             java.util.function.BiConsumer<Integer,Integer> pip = (px, py) -> {
-                int jitterX = 0;
-                int jitterY = 0;
+                int jitterX = 0, jitterY = 0;
                 if (spinning) {
                     double phase = animPhase + (px + py) * 0.01;
-                    jitterX = (int) Math.round(Math.cos(phase) * jitterAmp);
-                    jitterY = (int) Math.round(Math.sin(phase) * jitterAmp);
+                    jitterX = (int) Math.round(Math.cos(phase) * 3);
+                    jitterY = (int) Math.round(Math.sin(phase) * 3);
                 }
-                int r = (int) Math.round(pipRadius * scaleAmp);
-                g2.fillOval(px - r + jitterX, py - r + jitterY, r * 2, r * 2);
+
+                // Shadow pip kecil
+                g2.setColor(new Color(200, 200, 200));
+                g2.fillOval(px - pipRadius + 1 + jitterX, py - pipRadius + 1 + jitterY, pipRadius * 2, pipRadius * 2);
+
+                // Pip utama
+                g2.setColor(pipColor);
+                g2.fillOval(px - pipRadius + jitterX, py - pipRadius + jitterY, pipRadius * 2, pipRadius * 2);
             };
 
             switch (face) {
-                case 1:
-                    pip.accept(mx, my);
-                    break;
-                case 2:
-                    pip.accept(ox, oy);
-                    pip.accept(rx, by);
-                    break;
-                case 3:
-                    pip.accept(ox, oy);
-                    pip.accept(mx, my);
-                    pip.accept(rx, by);
-                    break;
-                case 4:
-                    pip.accept(ox, oy);
-                    pip.accept(rx, oy);
-                    pip.accept(ox, by);
-                    pip.accept(rx, by);
-                    break;
-                case 5:
-                    pip.accept(ox, oy);
-                    pip.accept(rx, oy);
-                    pip.accept(mx, my);
-                    pip.accept(ox, by);
-                    pip.accept(rx, by);
-                    break;
-                case 6:
-                    pip.accept(ox, oy);
-                    pip.accept(ox, my);
-                    pip.accept(ox, by);
-                    pip.accept(rx, oy);
-                    pip.accept(rx, my);
-                    pip.accept(rx, by);
-                    break;
+                case 1: pip.accept(mx, my); break;
+                case 2: pip.accept(ox, oy); pip.accept(rx, by); break;
+                case 3: pip.accept(ox, oy); pip.accept(mx, my); pip.accept(rx, by); break;
+                case 4: pip.accept(ox, oy); pip.accept(rx, oy); pip.accept(ox, by); pip.accept(rx, by); break;
+                case 5: pip.accept(ox, oy); pip.accept(rx, oy); pip.accept(mx, my); pip.accept(ox, by); pip.accept(rx, by); break;
+                case 6: pip.accept(ox, oy); pip.accept(ox, my); pip.accept(ox, by); pip.accept(rx, oy); pip.accept(rx, my); pip.accept(rx, by); break;
             }
 
             g2.dispose();
-        }
-    }
-
-    // Appends a timestamped line to the game log (thread-safe)
-    public void log(String message) {
-        // Forward log request to main application which holds the game log UI
-        if (mainApp != null) {
-            mainApp.appendToGameLog(message);
-        }
-    }
-
-    // Clears the game log
-    public void clearLog() {
-        if (mainApp != null) {
-            mainApp.clearGameLog();
         }
     }
 }

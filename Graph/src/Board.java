@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 
 class Board {
     private final int totalNodes;
@@ -12,12 +14,42 @@ class Board {
     private final int PADDING = 0;
     private final int SPACING = 0;
 
+    // Map untuk menyimpan koneksi: Kunci = Node Asal, Nilai = Node Tujuan
+    private Map<Integer, Integer> connections;
+
     public Board(int totalNodes) {
         this.totalNodes = totalNodes;
         this.nodes = new ArrayList<>();
+        this.connections = new HashMap<>(); // Inisialisasi map
+
         initializeBoardNodes();
+        initializeRandomConnections(); // Buat koneksi acak
+
         // create an "outside" node with id 0 positioned off-screen (won't be drawn)
         outsideNode = new BoardNode(0, -BoardNode.SIZE - 20, -BoardNode.SIZE - 20);
+    }
+
+    // Method baru untuk membuat 5 koneksi acak
+    private void initializeRandomConnections() {
+        Random rnd = new Random();
+        int connectionsMade = 0;
+
+        while (connectionsMade < 5) {
+            // Pilih node asal secara acak (Hindari node awal dan akhir)
+            int start = rnd.nextInt(totalNodes - 2) + 2;
+            // Pilih node tujuan secara acak
+            int end = rnd.nextInt(totalNodes - 2) + 2;
+
+            // Validasi koneksi
+            if (start == end) continue; // Tidak boleh ke diri sendiri
+            if (connections.containsKey(start)) continue; // Node asal sudah punya koneksi
+            if (connections.containsValue(start)) continue; // Hindari loop sederhana
+            if (Math.abs(start - end) < 3) continue; // Jarak minimal agar terlihat jelas
+
+            // Simpan koneksi
+            connections.put(start, end);
+            connectionsMade++;
+        }
     }
 
     private void initializeBoardNodes() {
@@ -70,4 +102,7 @@ class Board {
 
     public int getTotalNodes() { return totalNodes; }
     public List<BoardNode> getNodes() { return nodes; }
+
+    // Getter untuk connections
+    public Map<Integer, Integer> getConnections() { return connections; }
 }
