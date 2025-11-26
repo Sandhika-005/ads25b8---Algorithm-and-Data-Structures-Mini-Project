@@ -2,30 +2,24 @@ import java.util.*;
 
 public class DijkstraPathFinder {
 
-    // Mencari urutan node (jalur) dengan prioritas:
-    // 1. Menang langsung (jika target terjangkau dalam maxSteps)
-    // 2. Ambil Bintang (kelipatan 5) untuk extra turn (jika target jauh & bintang terjangkau)
-    // 3. Maju biasa ke arah target
     public static List<Integer> findShortestPathSteps(Board board, int startNodeId, int targetNodeId, int maxSteps) {
-        // 1. Jalankan Dijkstra dari Start Node ke SELURUH papan untuk mendapatkan peta jarak
+        // 1. Jalankan Dijkstra dari Start Node ke SELURUH papan
         Map<Integer, Integer> dist = new HashMap<>();
         Map<Integer, Integer> prev = new HashMap<>();
         runDijkstra(board, startNodeId, dist, prev);
 
-        // 2. Cek jalur normal ke Target Utama (Biasanya Node 64)
+        // 2. Cek jalur normal ke Target Utama (Node 64)
         List<Integer> pathDirectToTarget = reconstructPath(prev, startNodeId, targetNodeId);
 
-        // Jika Target (Finish) bisa dicapai dengan dadu saat ini, langsung gas ke sana!
+        // Jika Target (Finish) bisa dicapai dengan dadu saat ini, langsung ke sana!
         if (!pathDirectToTarget.isEmpty() && pathDirectToTarget.size() <= maxSteps) {
             return pathDirectToTarget;
         }
 
-        // 3. Jika Target tidak terjangkau, cari Bintang (Node kelipatan 5) yang terjangkau
-        // Fitur: "kalo shortest path > maxSteps maka ke bintang dulu"
+        // 3. Cari Bintang (Node kelipatan 5) yang jaraknya PAS dengan dadu
         Integer bestStarNode = null;
         int minDistanceToTargetFromStar = Integer.MAX_VALUE;
 
-        // Iterasi semua node untuk mencari kandidat Bintang
         for (int nodeId = 1; nodeId <= board.getTotalNodes(); nodeId++) {
             // Syarat 1: Harus kelipatan 5 (Bintang)
             if (nodeId % 5 != 0) continue;
@@ -33,19 +27,19 @@ public class DijkstraPathFinder {
             // Syarat 2: Bukan posisi start saat ini
             if (nodeId == startNodeId) continue;
 
-            // Syarat 3: Harus terjangkau dengan dadu saat ini
+            // Syarat 3: Harus terjangkau SESUAI dadu
             int distToStar = dist.getOrDefault(nodeId, Integer.MAX_VALUE);
-            if (distToStar > maxSteps) continue;
 
-            // Jika node bintang ini punya koneksi (ular/tangga), kita harus cek tujuan akhirnya
-            // Tapi dalam implementasi board ini, logika getNeighbors sudah menangani 'lompatan'
-            // Jadi nodeId di sini adalah node yang BENAR-BENAR kita pijak.
+            // PERBAIKAN BUG DI SINI:
+            // Sebelumnya: if (distToStar > maxSteps)
+            // Sekarang: if (distToStar != maxSteps)
+            // Artinya: Kita hanya mengambil Bintang jika kita mendarat TEPAT di atasnya dengan dadu ini.
+            // Jika dadu 6, tapi bintang ada di jarak 5, kita ABAIKAN bintang itu dan jalan terus ke node 6.
+            if (distToStar != maxSteps) continue;
 
-            // Hitung sisa jarak dari Bintang ini ke Target Utama (Node 64)
-            // Kita butuh hitung jarak lagi dari si Bintang ke 64
+            // Hitung sisa jarak dari Bintang ini ke Target Utama
             int distStarToFinish = getShortestDistance(board, nodeId, targetNodeId);
 
-            // Pilih Bintang yang paling mendekatkan kita ke Finish
             if (distStarToFinish < minDistanceToTargetFromStar) {
                 minDistanceToTargetFromStar = distStarToFinish;
                 bestStarNode = nodeId;
@@ -55,11 +49,10 @@ public class DijkstraPathFinder {
         // 4. Putuskan Jalur Akhir
         List<Integer> finalPath;
         if (bestStarNode != null) {
-            // HORE! Ada bintang terjangkau. Ubah target ke Bintang tersebut.
-            // System.out.println("Dijkstra: Mengalihkan rute ke Bintang (Node " + bestStarNode + ")");
+            // Ada bintang yang jaraknya PAS dengan dadu
             finalPath = reconstructPath(prev, startNodeId, bestStarNode);
         } else {
-            // Tidak ada bintang terjangkau, gunakan jalur normal ke finish
+            // Tidak ada bintang yang pas, gunakan jalur normal sejauh maxSteps
             finalPath = pathDirectToTarget;
         }
 
@@ -75,27 +68,20 @@ public class DijkstraPathFinder {
         return stepsToTake;
     }
 
-    // Algoritma Dijkstra Inti
+    // --- Helper Methods (Tidak Berubah) ---
+
     private static void runDijkstra(Board board, int startNodeId, Map<Integer, Integer> dist, Map<Integer, Integer> prev) {
         PriorityQueue<Integer> pq = new PriorityQueue<>(Comparator.comparingInt(dist::get));
-
-        for (int i = 0; i <= board.getTotalNodes(); i++) {
-            dist.put(i, Integer.MAX_VALUE);
-        }
+        for (int i = 0; i <= board.getTotalNodes(); i++) dist.put(i, Integer.MAX_VALUE);
 
         dist.put(startNodeId, 0);
         pq.add(startNodeId);
-
         Set<Integer> visited = new HashSet<>();
 
         while (!pq.isEmpty()) {
             int u = pq.poll();
-
             if (visited.contains(u)) continue;
             visited.add(u);
-
-            // Di sini kita tidak break saat ketemu target, agar kita memetakan seluruh board
-            // untuk keperluan pencarian bintang.
 
             for (int v : getNeighbors(board, u)) {
                 int newDist = dist.get(u) + 1;
@@ -108,23 +94,17 @@ public class DijkstraPathFinder {
         }
     }
 
-    // Helper: Hitung jarak terpendek antar dua node spesifik (digunakan untuk evaluasi Bintang)
     private static int getShortestDistance(Board board, int start, int end) {
         Map<Integer, Integer> d = new HashMap<>();
-        Map<Integer, Integer> p = new HashMap<>(); // Dummy
+        Map<Integer, Integer> p = new HashMap<>();
         runDijkstra(board, start, d, p);
         return d.getOrDefault(end, Integer.MAX_VALUE);
     }
 
-    // Helper: Rekonstruksi Jalur dari prev map
     private static List<Integer> reconstructPath(Map<Integer, Integer> prev, int startNodeId, int targetNodeId) {
         List<Integer> path = new ArrayList<>();
         Integer curr = targetNodeId;
-
-        if (!prev.containsKey(curr) && curr != startNodeId) {
-            return path; // Tidak ada jalur
-        }
-
+        if (!prev.containsKey(curr) && curr != startNodeId) return path;
         while (curr != null && curr != startNodeId) {
             path.add(0, curr);
             curr = prev.get(curr);
@@ -135,17 +115,8 @@ public class DijkstraPathFinder {
     private static List<Integer> getNeighbors(Board board, int nodeId) {
         List<Integer> neighbors = new ArrayList<>();
         int totalNodes = board.getTotalNodes();
-
-        // Tetangga 1: Jalan Biasa (Maju 1 langkah)
-        if (nodeId + 1 <= totalNodes) {
-            neighbors.add(nodeId + 1);
-        }
-
-        // Tetangga 2: Lewat Jalur Koneksi (Tangga/Ular)
-        if (board.getConnections().containsKey(nodeId)) {
-            neighbors.add(board.getConnections().get(nodeId));
-        }
-
+        if (nodeId + 1 <= totalNodes) neighbors.add(nodeId + 1);
+        if (board.getConnections().containsKey(nodeId)) neighbors.add(board.getConnections().get(nodeId));
         return neighbors;
     }
 }

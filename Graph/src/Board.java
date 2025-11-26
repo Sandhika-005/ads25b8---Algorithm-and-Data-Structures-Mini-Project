@@ -21,7 +21,7 @@ class Board {
         this.connections = new HashMap<>();
 
         initializeBoardNodes();
-        initializeRandomConnections(); // Koneksi sekarang hanya akan membuat Tangga (Naik)
+        initializeRandomConnections();
 
         outsideNode = new BoardNode(0, -BoardNode.SIZE - 20, -BoardNode.SIZE - 20);
     }
@@ -31,17 +31,17 @@ class Board {
         int connectionsMade = 0;
 
         while (connectionsMade < 5) {
-            // Pilih dua node acak
+            // Pilih dua node secara acak
             int nodeA = rnd.nextInt(totalNodes - 2) + 2;
             int nodeB = rnd.nextInt(totalNodes - 2) + 2;
 
             if (nodeA == nodeB) continue;
 
-            // LOGIKA BARU: Pastikan Start < End
-            // Ini menjamin koneksi selalu "Naik" (Tangga) dan visualisasinya Hijau
+            // PERBAIKAN: Memaksa Start < End agar selalu jadi Tangga (Naik)
             int start = Math.min(nodeA, nodeB);
             int end = Math.max(nodeA, nodeB);
 
+            // Validasi koneksi
             if (connections.containsKey(start)) continue;
             if (connections.containsValue(start)) continue;
             if (Math.abs(start - end) < 3) continue;

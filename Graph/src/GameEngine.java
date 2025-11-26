@@ -11,8 +11,6 @@ class GameEngine {
     private Queue<Player> turnQueue;
     private Player currentPlayer;
 
-    // Ganti Stack biasa menjadi Queue untuk menyimpan urutan node spesifik (Dijkstra)
-    // Atau Stack arah (Normal)
     private Stack<Integer> movementStack; // Untuk normal (+1 / -1)
     private Queue<Integer> dijkstraMoveQueue; // Untuk mode Dijkstra (Node ID spesifik)
 
@@ -116,7 +114,6 @@ class GameEngine {
         }
     }
 
-    // --- LOGIKA UTAMA DI SINI ---
     private void executeDiceRoll() {
         int diceRoll = rng.nextInt(6) + 1;
         boolean isGreen = rng.nextDouble() < GREEN_PROBABILITY;
@@ -131,18 +128,13 @@ class GameEngine {
         int currentPos = currentPlayer.getCurrentPosition();
 
         // CEK BILANGAN PRIMA
-        if (isPrime(currentPos) && moveDirection > 0) { // Hanya aktif jika maju
+        if (isPrime(currentPos) && moveDirection > 0) {
             JOptionPane.showMessageDialog(mainApp,
                     "✨ PRIME NUMBER POWER-UP! ✨\nPosisi " + currentPos + " adalah Prima.\nMengaktifkan Shortest Path (Dijkstra)!",
                     "Fitur Spesial", JOptionPane.INFORMATION_MESSAGE);
 
-            // Hitung jalur terpendek menggunakan Dijkstra
-            // Target adalah Node Terakhir (biasanya 64)
             List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), diceRoll);
-
-            // Masukkan node-node tujuan ke queue
             dijkstraMoveQueue.addAll(path);
-
         } else {
             // Gerakan Normal
             for (int i = 0; i < diceRoll; i++) {
@@ -154,31 +146,33 @@ class GameEngine {
     }
 
     private void startMovementAnimation() {
+        // Timer ini mengontrol animasi langkah demi langkah
         Timer timer = new Timer(MOVEMENT_INTERVAL, null);
         timer.addActionListener(e -> {
             boolean isDijkstraActive = !dijkstraMoveQueue.isEmpty();
             boolean isNormalActive = !movementStack.isEmpty();
 
+            // KONDISI BERHENTI: Ketika kedua antrian kosong
             if (!isDijkstraActive && !isNormalActive) {
                 ((Timer) e.getSource()).stop();
 
-                // Cek koneksi papan HANYA jika bukan gerakan Dijkstra
-                // (Karena Dijkstra sudah memperhitungkan koneksi sebagai jalan)
-                if (!isDijkstraActive) {
-                    checkBoardConnection();
-                }
+                // PERBAIKAN: Fitur hanya dipanggil DI SINI (saat berhenti)
+                // Cek koneksi (Tangga/Ular)
+                boolean connectionTaken = checkBoardConnection();
+
+                // Jika koneksi diambil, posisi berubah, jadi cek win condition di posisi baru
+                // Jika tidak, cek di posisi saat ini.
 
                 checkWinCondition();
-                finalizeTurn();
+                finalizeTurn(); // Cek Bintang (Extra Turn) terjadi di sini
             } else {
+                // KONDISI BERGERAK: Hanya update posisi, JANGAN cek fitur di sini
                 controlPanel.enableRollButton(false);
 
                 if (isDijkstraActive) {
-                    // Mode Dijkstra: Pindah langsung ke Node ID tertentu
                     int nextNodeId = dijkstraMoveQueue.poll();
                     movePlayerToSpecificNode(nextNodeId);
                 } else {
-                    // Mode Normal: Pindah +1 atau -1
                     int direction = movementStack.pop();
                     movePlayerByOneStep(direction);
                 }
@@ -187,7 +181,6 @@ class GameEngine {
         timer.start();
     }
 
-    // Fungsi Cek Prima
     private boolean isPrime(int n) {
         if (n <= 1) return false;
         if (n == 2) return true;
@@ -224,8 +217,9 @@ class GameEngine {
         movePlayerToSpecificNode(newPosId);
     }
 
-    private void checkBoardConnection() {
-        if (currentPlayer == null) return;
+    // Mengembalikan true jika pemain berpindah karena koneksi
+    private boolean checkBoardConnection() {
+        if (currentPlayer == null) return false;
         int currentPos = currentPlayer.getCurrentPosition();
 
         if (board.getConnections().containsKey(currentPos)) {
@@ -236,16 +230,22 @@ class GameEngine {
             JOptionPane.showMessageDialog(mainApp,
                     currentPlayer.getName() + " mendarat di " + type + "!\nPindah ke Node " + target,
                     "Koneksi Ditemukan!", JOptionPane.INFORMATION_MESSAGE);
+            return true;
         }
+        return false;
     }
 
     private void finalizeTurn() {
         Player acting = turnQueue.peek();
         if (acting != null) {
             int pos = acting.getCurrentPosition();
+
+            // PERBAIKAN: Pengecekan Bintang terjadi di akhir turn
             boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
+
             if (landedStar) {
                 JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
+                // Jangan poll pemain dari antrian, biar dia main lagi
             } else {
                 Player finishedPlayer = turnQueue.poll();
                 if (finishedPlayer != null) {
