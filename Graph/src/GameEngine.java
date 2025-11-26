@@ -10,7 +10,11 @@ class GameEngine {
     private GameVisualizer mainApp;
     private Queue<Player> turnQueue;
     private Player currentPlayer;
-    private Stack<Integer> movementStack;
+
+    // Ganti Stack biasa menjadi Queue untuk menyimpan urutan node spesifik (Dijkstra)
+    // Atau Stack arah (Normal)
+    private Stack<Integer> movementStack; // Untuk normal (+1 / -1)
+    private Queue<Integer> dijkstraMoveQueue; // Untuk mode Dijkstra (Node ID spesifik)
 
     private static final double GREEN_PROBABILITY = 0.8;
     private static final int MAX_PLAYERS = 5;
@@ -25,6 +29,7 @@ class GameEngine {
         this.mainApp = mainApp;
         this.turnQueue = new LinkedList<>();
         this.movementStack = new Stack<>();
+        this.dijkstraMoveQueue = new LinkedList<>();
     }
 
     public void setControlPanel(GameControlPanel controlPanel) {
@@ -74,8 +79,6 @@ class GameEngine {
 
         Collections.shuffle(allPlayers);
 
-        // Clear log removed
-
         for (Player p : allPlayers) {
             turnQueue.offer(p);
             placePlayerOnNode(p, 0);
@@ -100,7 +103,7 @@ class GameEngine {
     }
 
     public void rollDiceAndMove() {
-        if (currentPlayer == null || !movementStack.isEmpty()) return;
+        if (currentPlayer == null || (!movementStack.isEmpty() || !dijkstraMoveQueue.isEmpty())) return;
         controlPanel.enableRollButton(false);
         startDiceAnimation();
     }
@@ -113,19 +116,38 @@ class GameEngine {
         }
     }
 
+    // --- LOGIKA UTAMA DI SINI ---
     private void executeDiceRoll() {
         int diceRoll = rng.nextInt(6) + 1;
         boolean isGreen = rng.nextDouble() < GREEN_PROBABILITY;
         String resultColor = isGreen ? "GREEN" : "RED";
         int moveDirection = isGreen ? 1 : -1;
 
-        // Log removed
-
         if (controlPanel != null) controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
 
         movementStack.clear();
-        for (int i = 0; i < diceRoll; i++) {
-            movementStack.push(moveDirection);
+        dijkstraMoveQueue.clear();
+
+        int currentPos = currentPlayer.getCurrentPosition();
+
+        // CEK BILANGAN PRIMA
+        if (isPrime(currentPos) && moveDirection > 0) { // Hanya aktif jika maju
+            JOptionPane.showMessageDialog(mainApp,
+                    "✨ PRIME NUMBER POWER-UP! ✨\nPosisi " + currentPos + " adalah Prima.\nMengaktifkan Shortest Path (Dijkstra)!",
+                    "Fitur Spesial", JOptionPane.INFORMATION_MESSAGE);
+
+            // Hitung jalur terpendek menggunakan Dijkstra
+            // Target adalah Node Terakhir (biasanya 64)
+            List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), diceRoll);
+
+            // Masukkan node-node tujuan ke queue
+            dijkstraMoveQueue.addAll(path);
+
+        } else {
+            // Gerakan Normal
+            for (int i = 0; i < diceRoll; i++) {
+                movementStack.push(moveDirection);
+            }
         }
 
         startMovementAnimation();
@@ -134,74 +156,61 @@ class GameEngine {
     private void startMovementAnimation() {
         Timer timer = new Timer(MOVEMENT_INTERVAL, null);
         timer.addActionListener(e -> {
-            if (movementStack.isEmpty()) {
+            boolean isDijkstraActive = !dijkstraMoveQueue.isEmpty();
+            boolean isNormalActive = !movementStack.isEmpty();
+
+            if (!isDijkstraActive && !isNormalActive) {
                 ((Timer) e.getSource()).stop();
-                checkBoardConnection();
+
+                // Cek koneksi papan HANYA jika bukan gerakan Dijkstra
+                // (Karena Dijkstra sudah memperhitungkan koneksi sebagai jalan)
+                if (!isDijkstraActive) {
+                    checkBoardConnection();
+                }
+
                 checkWinCondition();
                 finalizeTurn();
             } else {
                 controlPanel.enableRollButton(false);
-                int direction = movementStack.pop();
-                movePlayerByOneStep(direction);
+
+                if (isDijkstraActive) {
+                    // Mode Dijkstra: Pindah langsung ke Node ID tertentu
+                    int nextNodeId = dijkstraMoveQueue.poll();
+                    movePlayerToSpecificNode(nextNodeId);
+                } else {
+                    // Mode Normal: Pindah +1 atau -1
+                    int direction = movementStack.pop();
+                    movePlayerByOneStep(direction);
+                }
             }
         });
         timer.start();
     }
 
-    private void checkBoardConnection() {
-        if (currentPlayer == null) return;
-        int currentPos = currentPlayer.getCurrentPosition();
-
-        if (board.getConnections().containsKey(currentPos)) {
-            int target = board.getConnections().get(currentPos);
-
-            BoardNode oldNode = board.getNodeById(currentPos);
-            BoardNode newNode = board.getNodeById(target);
-
-            if (oldNode != null) oldNode.removePlayer(currentPlayer);
-            currentPlayer.setCurrentPosition(target);
-            if (newNode != null) newNode.addPlayer(currentPlayer);
-
-            String type = target > currentPos ? "Tangga (Naik)" : "Ular (Turun)";
-            // Log removed
-
-            JOptionPane.showMessageDialog(mainApp,
-                    currentPlayer.getName() + " mendarat di " + type + "!\nPindah ke Node " + target,
-                    "Koneksi Ditemukan!", JOptionPane.INFORMATION_MESSAGE);
-
-            mainApp.repaint();
+    // Fungsi Cek Prima
+    private boolean isPrime(int n) {
+        if (n <= 1) return false;
+        if (n == 2) return true;
+        if (n % 2 == 0) return false;
+        for (int i = 3; i <= Math.sqrt(n); i += 2) {
+            if (n % i == 0) return false;
         }
+        return true;
     }
 
-    private void finalizeTurn() {
-        Player acting = turnQueue.peek();
-        if (acting != null) {
-            int pos = acting.getCurrentPosition();
-            boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
-            if (landedStar) {
-                JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
-                // Log removed
-            } else {
-                Player finishedPlayer = turnQueue.poll();
-                if (finishedPlayer != null) {
-                    if (finishedPlayer.getCurrentPosition() < board.getTotalNodes()) {
-                        turnQueue.offer(finishedPlayer);
-                    }
-                    // Log removed
-                }
-            }
-        }
+    private void movePlayerToSpecificNode(int nodeId) {
+        if (currentPlayer == null) return;
+        int oldPos = currentPlayer.getCurrentPosition();
 
-        if (turnQueue.isEmpty()) {
-            currentPlayer = null;
-        } else {
-            currentPlayer = turnQueue.peek();
-            // Log removed
-        }
+        BoardNode oldNode = board.getNodeById(oldPos);
+        if (oldNode != null) oldNode.removePlayer(currentPlayer);
 
-        if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
-        if (controlPanel != null) controlPanel.enableRollButton(true);
-        scheduleAutoRollIfNeeded();
+        currentPlayer.setCurrentPosition(nodeId);
+
+        BoardNode newNode = board.getNodeById(nodeId);
+        if (newNode != null) newNode.addPlayer(currentPlayer);
+
+        mainApp.repaint();
     }
 
     private void movePlayerByOneStep(int direction) {
@@ -212,21 +221,54 @@ class GameEngine {
         if (newPosId < 1) newPosId = 1;
         if (newPosId > board.getTotalNodes()) newPosId = board.getTotalNodes();
 
-        BoardNode oldNode = board.getNodeById(oldPosId);
-        if (oldNode != null) oldNode.removePlayer(currentPlayer);
+        movePlayerToSpecificNode(newPosId);
+    }
 
-        currentPlayer.setCurrentPosition(newPosId);
+    private void checkBoardConnection() {
+        if (currentPlayer == null) return;
+        int currentPos = currentPlayer.getCurrentPosition();
 
-        BoardNode newNode = board.getNodeById(newPosId);
-        if (newNode != null) newNode.addPlayer(currentPlayer);
+        if (board.getConnections().containsKey(currentPos)) {
+            int target = board.getConnections().get(currentPos);
+            movePlayerToSpecificNode(target);
 
-        // Log removed
-        mainApp.repaint();
+            String type = target > currentPos ? "Tangga (Naik)" : "Ular (Turun)";
+            JOptionPane.showMessageDialog(mainApp,
+                    currentPlayer.getName() + " mendarat di " + type + "!\nPindah ke Node " + target,
+                    "Koneksi Ditemukan!", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void finalizeTurn() {
+        Player acting = turnQueue.peek();
+        if (acting != null) {
+            int pos = acting.getCurrentPosition();
+            boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
+            if (landedStar) {
+                JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                Player finishedPlayer = turnQueue.poll();
+                if (finishedPlayer != null) {
+                    if (finishedPlayer.getCurrentPosition() < board.getTotalNodes()) {
+                        turnQueue.offer(finishedPlayer);
+                    }
+                }
+            }
+        }
+
+        if (turnQueue.isEmpty()) {
+            currentPlayer = null;
+        } else {
+            currentPlayer = turnQueue.peek();
+        }
+
+        if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
+        if (controlPanel != null) controlPanel.enableRollButton(true);
+        scheduleAutoRollIfNeeded();
     }
 
     private void checkWinCondition() {
         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
-            // Log removed
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
         }
     }

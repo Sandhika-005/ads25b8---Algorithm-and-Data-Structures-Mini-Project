@@ -132,7 +132,7 @@ class GameControlPanel extends JPanel {
     private JPanel createUniqueDicePanel() {
         diceAnimationPanel = new DiceAnimationPanel();
         diceAnimationPanel.setPreferredSize(new Dimension(200, 140));
-        diceAnimationPanel.setOpaque(false); // Transparan agar background panel terlihat
+        diceAnimationPanel.setOpaque(false);
 
         JPanel container = new JPanel(new GridBagLayout());
         container.setBackground(BG_DARK.brighter());
@@ -199,9 +199,7 @@ class GameControlPanel extends JPanel {
         }
     }
 
-    /**
-     * Panel Dadu dengan visualisasi 3D yang lebih bagus
-     */
+    // --- VISUALISASI DADU DIPERBAGUS DI SINI ---
     private class DiceAnimationPanel extends JPanel {
         private Timer spinTimer;
         private final int spinInterval = 50;
@@ -260,16 +258,16 @@ class GameControlPanel extends JPanel {
 
             int w = getWidth();
             int h = getHeight();
-            int side = Math.min(w, h) - 40; // Sedikit lebih kecil agar muat shadow
+            int side = Math.min(w, h) - 40; // Spasi untuk shadow
             int x = (w - side) / 2;
             int y = (h - side) / 2 - 5;
-            int arc = 30; // Sudut lebih bulat
+            int arc = 30; // Radius sudut rounded
 
-            // 1. Gambar Bayangan Dadu
+            // 1. Shadow (Bayangan)
             g2.setColor(new Color(0, 0, 0, 60));
             g2.fillRoundRect(x + 5, y + 8, side, side, arc, arc);
 
-            // 2. Gambar Body Dadu dengan Gradasi (Efek 3D)
+            // 2. Body Dadu (Gradient Putih ke Abu Muda)
             GradientPaint bodyGrad = new GradientPaint(
                     x, y, Color.WHITE,
                     x + side, y + side, new Color(220, 220, 220)
@@ -277,8 +275,8 @@ class GameControlPanel extends JPanel {
             g2.setPaint(bodyGrad);
             g2.fillRoundRect(x, y, side, side, arc, arc);
 
-            // 3. Highlight Putih di pojok kiri atas (Kilauan)
-            g2.setPaint(new Color(255, 255, 255, 150));
+            // 3. Kilauan (Highlight) di Pojok Kiri Atas
+            g2.setPaint(new Color(255, 255, 255, 180));
             g2.fillRoundRect(x + 5, y + 5, side / 2, side / 2, arc, arc);
 
             // 4. Border Halus
@@ -286,8 +284,7 @@ class GameControlPanel extends JPanel {
             g2.setStroke(new BasicStroke(1.5f));
             g2.drawRoundRect(x, y, side, side, arc, arc);
 
-            // 5. Gambar Titik Dadu (Pips)
-            g2.setColor(pipColor);
+            // 5. Gambar Pips (Titik Dadu) dengan efek kedalaman
             int pipRadius = side / 10;
             int ox = x + side / 6;
             int oy = y + side / 6;
@@ -304,13 +301,17 @@ class GameControlPanel extends JPanel {
                     jitterY = (int) Math.round(Math.sin(phase) * 3);
                 }
 
-                // Shadow pip kecil
+                // Shadow dalam Pip (Inset Effect)
                 g2.setColor(new Color(200, 200, 200));
                 g2.fillOval(px - pipRadius + 1 + jitterX, py - pipRadius + 1 + jitterY, pipRadius * 2, pipRadius * 2);
 
-                // Pip utama
+                // Pip Utama
                 g2.setColor(pipColor);
                 g2.fillOval(px - pipRadius + jitterX, py - pipRadius + jitterY, pipRadius * 2, pipRadius * 2);
+
+                // Highlight kecil pada Pip (efek bola)
+                g2.setColor(new Color(255, 255, 255, 100));
+                g2.fillOval(px - pipRadius/2 + jitterX, py - pipRadius/2 + jitterY, pipRadius/2, pipRadius/2);
             };
 
             switch (face) {
