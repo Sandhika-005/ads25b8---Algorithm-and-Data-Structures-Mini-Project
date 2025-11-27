@@ -63,7 +63,6 @@ class GameEngine {
                     promptForPlayers();
                     return;
                 }
-                // build players: 1 human (with name) + aiCount AIs
                 List<Player> customPlayers = new ArrayList<>();
                 Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
                 customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
@@ -86,7 +85,6 @@ class GameEngine {
                     promptForPlayers();
                     return;
                 }
-                // collect names for each human
                 List<Player> humans = new ArrayList<>();
                 Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
                 for (int i = 0; i < humanCount; i++) {
@@ -102,7 +100,7 @@ class GameEngine {
                 mainApp.repaint();
                 scheduleAutoRollIfNeeded();
                 return;
-            } else { // Custom: fallback to previous separate prompts
+            } else { // Custom
                 String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain manusia (min 1):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
                 if (sh == null) { System.exit(0); return; }
                 int humanCount = Integer.parseInt(sh.trim());
@@ -158,7 +156,7 @@ class GameEngine {
     }
 
     private void scheduleAutoRollIfNeeded() {
-        if (gameOver) return; // do nothing if game already finished
+        if (gameOver) return;
         if (currentPlayer != null && currentPlayer.isAI()) {
             if (controlPanel != null) controlPanel.enableRollButton(false);
             Timer t = new Timer(AI_DELAY_MS, e -> {
@@ -171,7 +169,7 @@ class GameEngine {
     }
 
     public void rollDiceAndMove() {
-        if (gameOver) return; // prevent rolls after game finished
+        if (gameOver) return;
         if (currentPlayer == null || (!movementStack.isEmpty() || !dijkstraMoveQueue.isEmpty())) return;
         controlPanel.enableRollButton(false);
         startDiceAnimation();
@@ -186,24 +184,71 @@ class GameEngine {
     }
 
     private void executeDiceRoll() {
-        int diceRoll = rng.nextInt(6) + 1;
-        boolean isGreen = rng.nextDouble() < GREEN_PROBABILITY;
-        String resultColor = isGreen ? "GREEN" : "RED";
-        int moveDirection = isGreen ? 1 : -1;
+        int currentPos = currentPlayer.getCurrentPosition();
+        int diceRoll;
+        boolean isGreen;
+        int moveDirection;
 
+        // --- 1. CEK APAKAH MODE AUTO-PILOT AKTIF ---
+        if (currentPlayer.isAutoPilotActive()) {
+
+            // LOGIKA CERDAS: Cek semua dadu 1-6
+            List<Integer> bestPath = new ArrayList<>();
+            int bestOutcomeVal = -1; // -1:None, 0:Normal, 1:Star, 2:Finish
+
+            for (int d = 1; d <= 6; d++) {
+                List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), d);
+
+                if (path.isEmpty()) continue;
+
+                int destNode = path.get(path.size() - 1);
+                boolean isFinish = (destNode == board.getTotalNodes());
+                // Cek apakah mendarat di bintang (kelipatan 5)
+                boolean isStar = (destNode > 0 && destNode % 5 == 0 && !isFinish);
+
+                int outcomeVal = 0; // Default: Langkah Normal
+                if (isFinish) outcomeVal = 2; // Prioritas Tertinggi
+                else if (isStar) outcomeVal = 1; // Prioritas Kedua
+
+                if (outcomeVal > bestOutcomeVal) {
+                    bestOutcomeVal = outcomeVal;
+                    bestPath = path;
+                } else if (outcomeVal == bestOutcomeVal) {
+                    // Jika sama-sama normal atau sama-sama bintang, pilih yang langkahnya lebih jauh/lebih pendek?
+                    // Biasanya pilih yang paling jauh untuk progres maksimal (kecuali strategi lain)
+                    if (bestPath.isEmpty() || path.size() > bestPath.size()) {
+                        bestPath = path;
+                    }
+                }
+            }
+
+            if (bestPath.isEmpty()) {
+                // Fallback default
+                bestPath = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), 6);
+            }
+
+            // SET HASIL MANIPULASI
+            diceRoll = bestPath.size();
+            isGreen = true;
+            moveDirection = 1;
+
+        } else {
+            // --- 2. MAIN NORMAL (RANDOM) ---
+            diceRoll = rng.nextInt(6) + 1;
+            isGreen = rng.nextDouble() < GREEN_PROBABILITY;
+            moveDirection = isGreen ? 1 : -1;
+        }
+
+        // --- UPDATE UI ---
+        String resultColor = isGreen ? "GREEN" : "RED";
         if (controlPanel != null) controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
 
+        // --- SETUP GERAKAN ---
         movementStack.clear();
         dijkstraMoveQueue.clear();
 
-        int currentPos = currentPlayer.getCurrentPosition();
-
-        // CEK BILANGAN PRIMA
-        if (isPrime(currentPos) && moveDirection > 0) {
-            JOptionPane.showMessageDialog(mainApp,
-                    "✨ PRIME NUMBER POWER-UP! ✨\nPosisi " + currentPos + " adalah Prima.\nMengaktifkan Shortest Path (Dijkstra)!",
-                    "Fitur Spesial", JOptionPane.INFORMATION_MESSAGE);
-
+        if (currentPlayer.isAutoPilotActive()) {
+            // Re-fetch path untuk konsistensi queue
             List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), diceRoll);
             dijkstraMoveQueue.addAll(path);
         } else {
@@ -217,27 +262,18 @@ class GameEngine {
     }
 
     private void startMovementAnimation() {
-        // Timer ini mengontrol animasi langkah demi langkah
         Timer timer = new Timer(MOVEMENT_INTERVAL, null);
         timer.addActionListener(e -> {
             boolean isDijkstraActive = !dijkstraMoveQueue.isEmpty();
             boolean isNormalActive = !movementStack.isEmpty();
 
-            // KONDISI BERHENTI: Ketika kedua antrian kosong
             if (!isDijkstraActive && !isNormalActive) {
                 ((Timer) e.getSource()).stop();
 
-                // PERBAIKAN: Fitur hanya dipanggil DI SINI (saat berhenti)
-                // Cek koneksi (Tangga/Ular)
                 boolean connectionTaken = checkBoardConnection();
-
-                // Jika koneksi diambil, posisi berubah, jadi cek win condition di posisi baru
-                // Jika tidak, cek di posisi saat ini.
-
                 checkWinCondition();
-                finalizeTurn(); // Cek Bintang (Extra Turn) terjadi di sini
+                finalizeTurn();
             } else {
-                // KONDISI BERGERAK: Hanya update posisi, JANGAN cek fitur di sini
                 if (controlPanel != null) controlPanel.enableRollButton(false);
 
                 if (isDijkstraActive) {
@@ -274,7 +310,6 @@ class GameEngine {
         BoardNode newNode = board.getNodeById(nodeId);
         if (newNode != null) newNode.addPlayer(currentPlayer);
 
-        // Update UI and status to reflect the most recent position
         if (controlPanel != null) controlPanel.updatePlayerStatus(currentPlayer);
         mainApp.repaint();
     }
@@ -290,7 +325,6 @@ class GameEngine {
         movePlayerToSpecificNode(newPosId);
     }
 
-    // Mengembalikan true jika pemain berpindah karena koneksi
     private boolean checkBoardConnection() {
         if (currentPlayer == null) return false;
         int currentPos = currentPlayer.getCurrentPosition();
@@ -310,7 +344,6 @@ class GameEngine {
 
     private void finalizeTurn() {
         if (gameOver) {
-            // Ensure UI shows ended state and controls disabled
             currentPlayer = null;
             if (controlPanel != null) {
                 controlPanel.updateTurnInfo(null);
@@ -321,14 +354,26 @@ class GameEngine {
 
         Player acting = turnQueue.peek();
         if (acting != null) {
+            // --- NAIKKAN COUNTER TURN ---
+            acting.incrementTurnCount();
             int pos = acting.getCurrentPosition();
 
-            // PERBAIKAN: Pengecekan Bintang terjadi di akhir turn
+            // --- CEK PEMICU AUTO-PILOT PERMANEN ---
+            // Jika baru selesai Turn 1 DAN posisinya Prima, aktifkan mode Auto-Pilot SELAMANYA.
+            if (acting.getTurnCount() == 1 && isPrime(pos)) {
+                acting.setAutoPilotActive(true);
+                JOptionPane.showMessageDialog(mainApp,
+                        "🌟 SUPER POWER UNLOCKED! 🌟\n" +
+                                acting.getName() + " mendarat di Prima pada Turn 1.\n" +
+                                "Mode Dijkstra (Auto-Pilot) AKTIF hingga Finish!",
+                        "Permanent Buff", JOptionPane.INFORMATION_MESSAGE);
+            }
+            // --------------------------------------
+
             boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
 
             if (landedStar) {
                 JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
-                // Jangan poll pemain dari antrian, biar dia main lagi
             } else {
                 Player finishedPlayer = turnQueue.poll();
                 if (finishedPlayer != null) {
@@ -353,29 +398,23 @@ class GameEngine {
     private void checkWinCondition() {
         if (currentPlayer == null) return;
         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
-            // Declare winner and stop the game
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
             gameOver = true;
-            // Clear remaining turns and disable controls
             turnQueue.clear();
             currentPlayer = null;
             if (controlPanel != null) {
                 controlPanel.updateTurnInfo(null);
                 controlPanel.enableRollButton(false);
             }
-            // Refresh view
             mainApp.repaint();
 
-            // Prompt to restart the game (ask user whether to restart and re-enter player counts).
             SwingUtilities.invokeLater(() -> {
                 int res = JOptionPane.showConfirmDialog(mainApp,
                         "Permainan selesai. Ingin memulai ulang dan memasukkan jumlah pemain lagi?",
                         "Mulai Ulang?", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
                 if (res == JOptionPane.YES_OPTION) {
-                    // Rebuild the game with the same board size; this will recreate GameEngine and prompt for players.
                     mainApp.updateBoardNodeCount(board.getTotalNodes());
                 } else {
-                    // If user chooses NO (or closes), exit the application immediately
                     System.exit(0);
                 }
             });
@@ -386,7 +425,6 @@ class GameEngine {
         BoardNode node = board.getNodeById(nodeId);
         if (node != null) node.addPlayer(p);
         p.setCurrentPosition(nodeId);
-        // Ensure status shows the player's current (just assigned) position
         if (controlPanel != null) controlPanel.updatePlayerStatus(p);
     }
 
