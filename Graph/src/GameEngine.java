@@ -38,22 +38,88 @@ class GameEngine {
     }
 
     public void promptForPlayers() {
+        String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)", "Custom (Choose counts)"};
+        int choice = JOptionPane.showOptionDialog(mainApp,
+                "Pilih mode permainan:",
+                "Pilih Mode",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                modes,
+                modes[0]);
+
+        if (choice == JOptionPane.CLOSED_OPTION) { System.exit(0); return; }
+
         try {
-            String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain manusia (min 1):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
-            if (sh == null) { System.exit(0); return; }
-            int humanCount = Integer.parseInt(sh.trim());
+            if (choice == 0) { // Play vs AI
+                String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1", JOptionPane.QUESTION_MESSAGE);
+                if (name == null) { System.exit(0); return; }
+                int maxAi = MAX_PLAYERS - 1;
+                String sa = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah AI (1.." + maxAi + "):", "1");
+                if (sa == null) { System.exit(0); return; }
+                int aiCount = Integer.parseInt(sa.trim());
+                if (aiCount < 1 || aiCount > maxAi) {
+                    JOptionPane.showMessageDialog(mainApp, "Jumlah AI harus antara 1 dan " + maxAi + ".", "Error", JOptionPane.ERROR_MESSAGE);
+                    promptForPlayers();
+                    return;
+                }
+                // build players: 1 human (with name) + aiCount AIs
+                List<Player> customPlayers = new ArrayList<>();
+                Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
+                customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
+                for (int i = 0; i < aiCount; i++) {
+                    customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
+                }
+                Collections.shuffle(customPlayers);
+                for (Player p : customPlayers) { turnQueue.offer(p); placePlayerOnNode(p, 0); }
+                currentPlayer = turnQueue.peek();
+                if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
+                mainApp.repaint();
+                scheduleAutoRollIfNeeded();
+                return;
+            } else if (choice == 1) { // Player vs Player
+                String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", "2");
+                if (sh == null) { System.exit(0); return; }
+                int humanCount = Integer.parseInt(sh.trim());
+                if (humanCount < 2 || humanCount > MAX_PLAYERS) {
+                    JOptionPane.showMessageDialog(mainApp, "Jumlah pemain harus antara 2 dan " + MAX_PLAYERS + ".", "Error", JOptionPane.ERROR_MESSAGE);
+                    promptForPlayers();
+                    return;
+                }
+                // collect names for each human
+                List<Player> humans = new ArrayList<>();
+                Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
+                for (int i = 0; i < humanCount; i++) {
+                    String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1), JOptionPane.QUESTION_MESSAGE);
+                    if (name == null) { System.exit(0); return; }
+                    if (name.trim().isEmpty()) name = "Pemain " + (i + 1);
+                    humans.add(new Player(name, playerColors[i % playerColors.length], false));
+                }
+                Collections.shuffle(humans);
+                for (Player p : humans) { turnQueue.offer(p); placePlayerOnNode(p, 0); }
+                currentPlayer = turnQueue.peek();
+                if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
+                mainApp.repaint();
+                scheduleAutoRollIfNeeded();
+                return;
+            } else { // Custom: fallback to previous separate prompts
+                String sh = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah pemain manusia (min 1):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
+                if (sh == null) { System.exit(0); return; }
+                int humanCount = Integer.parseInt(sh.trim());
 
-            String sa = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah AI (>=0):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
-            if (sa == null) { System.exit(0); return; }
-            int aiCount = Integer.parseInt(sa.trim());
+                String sa = JOptionPane.showInputDialog(mainApp, "Masukkan jumlah AI (>=0):", "Mulai Permainan", JOptionPane.QUESTION_MESSAGE);
+                if (sa == null) { System.exit(0); return; }
+                int aiCount = Integer.parseInt(sa.trim());
 
-            int total = humanCount + aiCount;
-            if (total < 2 || total > MAX_PLAYERS || humanCount < 1) {
-                JOptionPane.showMessageDialog(mainApp, "Total pemain harus antara 2 dan " + MAX_PLAYERS + " dengan minimal 1 pemain manusia.", "Error", JOptionPane.ERROR_MESSAGE);
-                promptForPlayers();
+                int total = humanCount + aiCount;
+                if (total < 2 || total > MAX_PLAYERS || humanCount < 1) {
+                    JOptionPane.showMessageDialog(mainApp, "Total pemain harus antara 2 dan " + MAX_PLAYERS + " dengan minimal 1 pemain manusia.", "Error", JOptionPane.ERROR_MESSAGE);
+                    promptForPlayers();
+                    return;
+                }
+                initializePlayers(humanCount, aiCount);
                 return;
             }
-            initializePlayers(humanCount, aiCount);
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(mainApp, "Input tidak valid. Masukkan angka.", "Error", JOptionPane.ERROR_MESSAGE);
             promptForPlayers();
@@ -208,6 +274,8 @@ class GameEngine {
         BoardNode newNode = board.getNodeById(nodeId);
         if (newNode != null) newNode.addPlayer(currentPlayer);
 
+        // Update UI and status to reflect the most recent position
+        if (controlPanel != null) controlPanel.updatePlayerStatus(currentPlayer);
         mainApp.repaint();
     }
 
@@ -318,6 +386,8 @@ class GameEngine {
         BoardNode node = board.getNodeById(nodeId);
         if (node != null) node.addPlayer(p);
         p.setCurrentPosition(nodeId);
+        // Ensure status shows the player's current (just assigned) position
+        if (controlPanel != null) controlPanel.updatePlayerStatus(p);
     }
 
     public Player getCurrentPlayer() { return currentPlayer; }

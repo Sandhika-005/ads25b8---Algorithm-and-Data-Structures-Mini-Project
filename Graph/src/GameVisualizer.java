@@ -21,7 +21,7 @@ public class GameVisualizer extends JFrame {
 
         showMainScreen();
 
-        SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
+        // Do not auto-prompt for players here. User should set node count and press START GAME.
     }
 
     // Rebuild board/game with new node count
@@ -32,7 +32,7 @@ public class GameVisualizer extends JFrame {
         this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this);
         this.gameEngine.setControlPanel(controlPanel);
         showMainScreen();
-        SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
+        // Do not auto-prompt after changing node count so user can fine-tune nodes and then press START GAME.
     }
 
     private void showMainScreen() {

@@ -16,6 +16,7 @@ class GameControlPanel extends JPanel {
     private GameVisualizer mainApp;
     private JSpinner nodesSpinner;
     private JButton applyNodesButton;
+    private JButton startGameButton;
 
     private final Color GREEN_RESULT = new Color(76, 175, 80);
     private final Color RED_RESULT = new Color(244, 67, 54);
@@ -50,6 +51,17 @@ class GameControlPanel extends JPanel {
             if (mainApp != null) mainApp.updateBoardNodeCount(nodes);
         });
         add(applyNodesButton);
+        add(Box.createVerticalStrut(6));
+        startGameButton = createControlButton("START GAME", new Color(33, 150, 243));
+        startGameButton.addActionListener(e -> {
+            // Disable node controls so user can't change mid-setup
+            applyNodesButton.setEnabled(false);
+            nodesSpinner.setEnabled(false);
+            startGameButton.setEnabled(false);
+            // Begin player prompts (will create players / AI)
+            if (gameEngine != null) SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
+        });
+        add(startGameButton);
         add(Box.createVerticalStrut(10));
 
         add(createDivider());
@@ -189,6 +201,17 @@ class GameControlPanel extends JPanel {
         }
 
         boardPanel.repaint();
+    }
+
+    // Update the status label to show the latest node position for the provided player.
+    public void updatePlayerStatus(Player p) {
+        SwingUtilities.invokeLater(() -> {
+            if (p != null) {
+                statusLabel.setText("Status pemain: Posisi: Node " + p.getCurrentPosition());
+            } else {
+                statusLabel.setText("Status pemain: Posisi: -");
+            }
+        });
     }
 
     public void enableRollButton(boolean enabled) {
@@ -336,3 +359,4 @@ class GameControlPanel extends JPanel {
         }
     }
 }
+

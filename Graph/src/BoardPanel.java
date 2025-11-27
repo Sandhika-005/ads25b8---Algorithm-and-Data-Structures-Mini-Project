@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 class BoardPanel extends JPanel {
     private final Board board;
@@ -129,31 +130,65 @@ class BoardPanel extends JPanel {
 
     private void drawPlayers(Graphics2D g2d) {
         int playerSize = 18;
-        for (BoardNode node : board.getNodes()) {
+
+        // Build list including outside node (id 0)
+        List<BoardNode> allNodes = new ArrayList<>(board.getNodes());
+        if (board.getOutsideNode() != null) allNodes.add(board.getOutsideNode());
+
+        for (BoardNode node : allNodes) {
             List<Player> players = node.getOccupyingPlayers();
-            if (players.isEmpty()) continue;
+            if (players == null || players.isEmpty()) continue;
 
-            int nodeX = node.getX() + node.getSize() / 2;
-            int nodeY = node.getY() + node.getSize() / 2;
+            int centerX;
+            int centerY;
+            // Place outside node visually to the left of node 1 (so it's visible)
+            if (node.getId() == 0) {
+                BoardNode n1 = board.getNodeById(1);
+                if (n1 != null) {
+                    centerX = n1.getX() - BoardNode.SIZE/2 - 20;
+                    centerY = n1.getY() + BoardNode.SIZE/2;
+                } else {
+                    centerX = Math.max(20, node.getX() + node.getSize() / 2);
+                    centerY = Math.max(20, node.getY() + node.getSize() / 2);
+                }
+            } else {
+                centerX = node.getX() + node.getSize() / 2;
+                centerY = node.getY() + node.getSize() / 2;
+            }
 
-            int offset = (players.size() - 1) * 10;
+            int n = players.size();
 
-            for (int i = 0; i < players.size(); i++) {
+            // radius for arrangement; reduce when many players
+            int maxRadius = node.getSize() / 2 - playerSize/2 - 4;
+            int radius = Math.max( (n <= 1 ? 0 : Math.min(maxRadius,  (playerSize + 6) * n / 2 )), 10);
+
+            for (int i = 0; i < n; i++) {
                 Player player = players.get(i);
+                int drawX, drawY;
 
-                int drawX = nodeX + i * 20 - offset;
+                if (n == 1) {
+                    // single player: center
+                    drawX = centerX - playerSize / 2;
+                    drawY = centerY - playerSize / 2;
+                } else {
+                    double angle = -Math.PI/2 + (2 * Math.PI * i) / n; // start top, evenly spaced
+                    int px = (int) Math.round(centerX + Math.cos(angle) * radius);
+                    int py = (int) Math.round(centerY + Math.sin(angle) * radius);
+                    drawX = px - playerSize / 2;
+                    drawY = py - playerSize / 2;
+                }
 
                 g2d.setColor(player.getColor());
-                g2d.fillOval(drawX - playerSize / 2, nodeY - playerSize / 2, playerSize, playerSize);
+                g2d.fillOval(drawX, drawY, playerSize, playerSize);
 
                 g2d.setColor(Color.WHITE);
                 g2d.setStroke(new BasicStroke(2));
-                g2d.drawOval(drawX - playerSize / 2, nodeY - playerSize / 2, playerSize, playerSize);
+                g2d.drawOval(drawX, drawY, playerSize, playerSize);
 
                 if (player == gameEngine.getCurrentPlayer()) {
                     g2d.setColor(Color.YELLOW);
-                    g2d.setStroke(new BasicStroke(4));
-                    g2d.drawOval(drawX - playerSize / 2 - 2, nodeY - playerSize / 2 - 2, playerSize + 4, playerSize + 4);
+                    g2d.setStroke(new BasicStroke(3));
+                    g2d.drawOval(drawX - 3, drawY - 3, playerSize + 6, playerSize + 6);
                 }
             }
         }
