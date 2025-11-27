@@ -192,9 +192,8 @@ class GameEngine {
         // --- 1. CEK APAKAH MODE AUTO-PILOT AKTIF ---
         if (currentPlayer.isAutoPilotActive()) {
 
-            // LOGIKA CERDAS: Cek semua dadu 1-6
             List<Integer> bestPath = new ArrayList<>();
-            int bestOutcomeVal = -1; // -1:None, 0:Normal, 1:Star, 2:Finish
+            int bestOutcomeVal = -1;
 
             for (int d = 1; d <= 6; d++) {
                 List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), d);
@@ -203,19 +202,16 @@ class GameEngine {
 
                 int destNode = path.get(path.size() - 1);
                 boolean isFinish = (destNode == board.getTotalNodes());
-                // Cek apakah mendarat di bintang (kelipatan 5)
                 boolean isStar = (destNode > 0 && destNode % 5 == 0 && !isFinish);
 
-                int outcomeVal = 0; // Default: Langkah Normal
-                if (isFinish) outcomeVal = 2; // Prioritas Tertinggi
-                else if (isStar) outcomeVal = 1; // Prioritas Kedua
+                int outcomeVal = 0;
+                if (isFinish) outcomeVal = 2;
+                else if (isStar) outcomeVal = 1;
 
                 if (outcomeVal > bestOutcomeVal) {
                     bestOutcomeVal = outcomeVal;
                     bestPath = path;
                 } else if (outcomeVal == bestOutcomeVal) {
-                    // Jika sama-sama normal atau sama-sama bintang, pilih yang langkahnya lebih jauh/lebih pendek?
-                    // Biasanya pilih yang paling jauh untuk progres maksimal (kecuali strategi lain)
                     if (bestPath.isEmpty() || path.size() > bestPath.size()) {
                         bestPath = path;
                     }
@@ -223,11 +219,9 @@ class GameEngine {
             }
 
             if (bestPath.isEmpty()) {
-                // Fallback default
                 bestPath = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), 6);
             }
 
-            // SET HASIL MANIPULASI
             diceRoll = bestPath.size();
             isGreen = true;
             moveDirection = 1;
@@ -239,20 +233,16 @@ class GameEngine {
             moveDirection = isGreen ? 1 : -1;
         }
 
-        // --- UPDATE UI ---
         String resultColor = isGreen ? "GREEN" : "RED";
         if (controlPanel != null) controlPanel.updateDiceResult(diceRoll, resultColor, moveDirection);
 
-        // --- SETUP GERAKAN ---
         movementStack.clear();
         dijkstraMoveQueue.clear();
 
         if (currentPlayer.isAutoPilotActive()) {
-            // Re-fetch path untuk konsistensi queue
             List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), diceRoll);
             dijkstraMoveQueue.addAll(path);
         } else {
-            // Gerakan Normal
             for (int i = 0; i < diceRoll; i++) {
                 movementStack.push(moveDirection);
             }
@@ -270,7 +260,9 @@ class GameEngine {
             if (!isDijkstraActive && !isNormalActive) {
                 ((Timer) e.getSource()).stop();
 
-                boolean connectionTaken = checkBoardConnection();
+                // PERBAIKAN: Logika koneksi sekarang ditangani step-by-step di movePlayerByOneStep.
+                // checkBoardConnection() dihapus di sini agar tidak double trigger/loop.
+
                 checkWinCondition();
                 finalizeTurn();
             } else {
@@ -314,33 +306,50 @@ class GameEngine {
         mainApp.repaint();
     }
 
+    // --- MODIFIKASI UTAMA DI SINI ---
     private void movePlayerByOneStep(int direction) {
         if (currentPlayer == null) return;
         int oldPosId = currentPlayer.getCurrentPosition();
         int newPosId = oldPosId + direction;
 
+        // Batasi agar tidak keluar board
         if (newPosId < 1) newPosId = 1;
         if (newPosId > board.getTotalNodes()) newPosId = board.getTotalNodes();
 
+        // 1. Pindahkan Pemain Secara Fisik
         movePlayerToSpecificNode(newPosId);
-    }
 
-    private boolean checkBoardConnection() {
-        if (currentPlayer == null) return false;
-        int currentPos = currentPlayer.getCurrentPosition();
+        // 2. Cek Koneksi (Instant Warp saat melewatinya)
+        Map<Integer, Integer> connections = board.getConnections();
 
-        if (board.getConnections().containsKey(currentPos)) {
-            int target = board.getConnections().get(currentPos);
+        // JIKA MAJU (+1): Cek Start -> End (Naik Tangga / Turun Ular)
+        if (direction > 0 && connections.containsKey(newPosId)) {
+            int target = connections.get(newPosId);
             movePlayerToSpecificNode(target);
-
-            String type = target > currentPos ? "Tangga (Naik)" : "Ular (Turun)";
             JOptionPane.showMessageDialog(mainApp,
-                    currentPlayer.getName() + " mendarat di " + type + "!\nPindah ke Node " + target,
+                    currentPlayer.getName() + " mendarat di Koneksi!\nPindah ke Node " + target,
                     "Koneksi Ditemukan!", JOptionPane.INFORMATION_MESSAGE);
-            return true;
         }
-        return false;
+
+        // JIKA MUNDUR (-1): Cek End -> Start (Merosot Balik)
+        if (direction < 0) {
+            for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
+                if (entry.getValue() == newPosId) { // Jika menginjak "Ujung" koneksi
+                    int start = entry.getKey();     // Ambil "Awal" koneksi
+                    movePlayerToSpecificNode(start); // Kembalikan ke Awal
+
+                    JOptionPane.showMessageDialog(mainApp,
+                            "⚠️ TERGELINCIR MUNDUR! ⚠️\n" +
+                                    "Kembali dari Node " + newPosId + " ke Node " + start,
+                            "Koneksi Terbalik", JOptionPane.WARNING_MESSAGE);
+                    break;
+                }
+            }
+        }
     }
+
+    // Method checkBoardConnection() yang lama dihapus/tidak dipanggil lagi
+    // karena fungsinya sudah dipindahkan ke movePlayerByOneStep() agar lebih real-time.
 
     private void finalizeTurn() {
         if (gameOver) {
@@ -354,12 +363,9 @@ class GameEngine {
 
         Player acting = turnQueue.peek();
         if (acting != null) {
-            // --- NAIKKAN COUNTER TURN ---
             acting.incrementTurnCount();
             int pos = acting.getCurrentPosition();
 
-            // --- CEK PEMICU AUTO-PILOT PERMANEN ---
-            // Jika baru selesai Turn 1 DAN posisinya Prima, aktifkan mode Auto-Pilot SELAMANYA.
             if (acting.getTurnCount() == 1 && isPrime(pos)) {
                 acting.setAutoPilotActive(true);
                 JOptionPane.showMessageDialog(mainApp,
@@ -368,7 +374,6 @@ class GameEngine {
                                 "Mode Dijkstra (Auto-Pilot) AKTIF hingga Finish!",
                         "Permanent Buff", JOptionPane.INFORMATION_MESSAGE);
             }
-            // --------------------------------------
 
             boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
 
