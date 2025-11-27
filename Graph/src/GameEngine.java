@@ -25,13 +25,20 @@ class GameEngine {
     // New flag to indicate game finished
     private boolean gameOver = false;
 
-    public GameEngine(Board board, GameVisualizer mainApp) {
+    // --- AUDIO BARU ---
+    private AudioPlayer audioPlayer;
+
+    // UBAH KONSTRUKTOR: Menerima AudioPlayer
+    public GameEngine(Board board, GameVisualizer mainApp, AudioPlayer audioPlayer) {
         this.board = board;
         this.mainApp = mainApp;
         this.turnQueue = new LinkedList<>();
         this.movementStack = new Stack<>();
         this.dijkstraMoveQueue = new LinkedList<>();
+        this.audioPlayer = audioPlayer; // Simpan instance AudioPlayer
     }
+    // --- AUDIO BARU ---
+
 
     public void setControlPanel(GameControlPanel controlPanel) {
         this.controlPanel = controlPanel;
@@ -176,6 +183,9 @@ class GameEngine {
     }
 
     private void startDiceAnimation() {
+        // --- AUDIO BARU: SFX Roll Dice (Jeda BGM) ---
+        audioPlayer.playEffect("rollDice");
+        // ---------------------------------
         if (controlPanel != null) {
             controlPanel.startDiceSpinAnimation(ANIMATION_DURATION, this::executeDiceRoll);
         } else {
@@ -260,9 +270,6 @@ class GameEngine {
             if (!isDijkstraActive && !isNormalActive) {
                 ((Timer) e.getSource()).stop();
 
-                // PERBAIKAN: Logika koneksi sekarang ditangani step-by-step di movePlayerByOneStep.
-                // checkBoardConnection() dihapus di sini agar tidak double trigger/loop.
-
                 checkWinCondition();
                 finalizeTurn();
             } else {
@@ -321,6 +328,7 @@ class GameEngine {
 
         // 2. Cek Koneksi (Instant Warp saat melewatinya)
         Map<Integer, Integer> connections = board.getConnections();
+        boolean connectionTriggered = false; // Flag untuk SFX
 
         // JIKA MAJU (+1): Cek Start -> End (Naik Tangga / Turun Ular)
         if (direction > 0 && connections.containsKey(newPosId)) {
@@ -329,6 +337,7 @@ class GameEngine {
             JOptionPane.showMessageDialog(mainApp,
                     currentPlayer.getName() + " mendarat di Koneksi!\nPindah ke Node " + target,
                     "Koneksi Ditemukan!", JOptionPane.INFORMATION_MESSAGE);
+            connectionTriggered = true;
         }
 
         // JIKA MUNDUR (-1): Cek End -> Start (Merosot Balik)
@@ -342,14 +351,18 @@ class GameEngine {
                             "⚠️ TERGELINCIR MUNDUR! ⚠️\n" +
                                     "Kembali dari Node " + newPosId + " ke Node " + start,
                             "Koneksi Terbalik", JOptionPane.WARNING_MESSAGE);
+                    connectionTriggered = true;
                     break;
                 }
             }
         }
-    }
 
-    // Method checkBoardConnection() yang lama dihapus/tidak dipanggil lagi
-    // karena fungsinya sudah dipindahkan ke movePlayerByOneStep() agar lebih real-time.
+        // --- AUDIO BARU: SFX Koneksi (Immediate/Tidak Jeda BGM) ---
+        if (connectionTriggered) {
+            audioPlayer.playEffectImmediately("connection");
+        }
+        // ---------------------------------
+    }
 
     private void finalizeTurn() {
         if (gameOver) {
@@ -368,6 +381,9 @@ class GameEngine {
 
             if (acting.getTurnCount() == 1 && isPrime(pos)) {
                 acting.setAutoPilotActive(true);
+                // --- AUDIO BARU: SFX Prima (Jeda BGM) ---
+                audioPlayer.playEffect("prime");
+                // ---------------------------------
                 JOptionPane.showMessageDialog(mainApp,
                         "🌟 SUPER POWER UNLOCKED! 🌟\n" +
                                 acting.getName() + " mendarat di Prima pada Turn 1.\n" +
@@ -378,6 +394,9 @@ class GameEngine {
             boolean landedStar = (pos > 0) && (pos % 5 == 0) && (pos != board.getTotalNodes());
 
             if (landedStar) {
+                // --- AUDIO BARU: SFX Bintang (Immediate/Tidak Jeda BGM) ---
+                audioPlayer.playEffectImmediately("star");
+                // ---------------------------------
                 JOptionPane.showMessageDialog(mainApp, acting.getName() + " mendapatkan giliran lagi karena mendarat pada bintang!", "Extra Turn", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 Player finishedPlayer = turnQueue.poll();
@@ -403,6 +422,10 @@ class GameEngine {
     private void checkWinCondition() {
         if (currentPlayer == null) return;
         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
+            // --- AUDIO BARU: SFX Menang (Stop BGM Total) ---
+            audioPlayer.stopBackgroundMusic();
+            audioPlayer.playEffectImmediately("win");
+            // ---------------------------------
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
             gameOver = true;
             turnQueue.clear();
@@ -420,6 +443,9 @@ class GameEngine {
                 if (res == JOptionPane.YES_OPTION) {
                     mainApp.updateBoardNodeCount(board.getTotalNodes());
                 } else {
+                    // --- AUDIO BARU: SFX Game Over (Immediate) ---
+                    audioPlayer.playEffectImmediately("gameOver");
+                    // ---------------------------------
                     System.exit(0);
                 }
             });
