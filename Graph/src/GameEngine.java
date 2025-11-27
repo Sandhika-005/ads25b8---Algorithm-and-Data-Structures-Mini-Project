@@ -22,6 +22,9 @@ class GameEngine {
 
     private final Random rng = new Random();
 
+    // New flag to indicate game finished
+    private boolean gameOver = false;
+
     public GameEngine(Board board, GameVisualizer mainApp) {
         this.board = board;
         this.mainApp = mainApp;
@@ -89,6 +92,7 @@ class GameEngine {
     }
 
     private void scheduleAutoRollIfNeeded() {
+        if (gameOver) return; // do nothing if game already finished
         if (currentPlayer != null && currentPlayer.isAI()) {
             if (controlPanel != null) controlPanel.enableRollButton(false);
             Timer t = new Timer(AI_DELAY_MS, e -> {
@@ -101,6 +105,7 @@ class GameEngine {
     }
 
     public void rollDiceAndMove() {
+        if (gameOver) return; // prevent rolls after game finished
         if (currentPlayer == null || (!movementStack.isEmpty() || !dijkstraMoveQueue.isEmpty())) return;
         controlPanel.enableRollButton(false);
         startDiceAnimation();
@@ -167,7 +172,7 @@ class GameEngine {
                 finalizeTurn(); // Cek Bintang (Extra Turn) terjadi di sini
             } else {
                 // KONDISI BERGERAK: Hanya update posisi, JANGAN cek fitur di sini
-                controlPanel.enableRollButton(false);
+                if (controlPanel != null) controlPanel.enableRollButton(false);
 
                 if (isDijkstraActive) {
                     int nextNodeId = dijkstraMoveQueue.poll();
@@ -236,6 +241,16 @@ class GameEngine {
     }
 
     private void finalizeTurn() {
+        if (gameOver) {
+            // Ensure UI shows ended state and controls disabled
+            currentPlayer = null;
+            if (controlPanel != null) {
+                controlPanel.updateTurnInfo(null);
+                controlPanel.enableRollButton(false);
+            }
+            return;
+        }
+
         Player acting = turnQueue.peek();
         if (acting != null) {
             int pos = acting.getCurrentPosition();
@@ -268,8 +283,34 @@ class GameEngine {
     }
 
     private void checkWinCondition() {
+        if (currentPlayer == null) return;
         if (currentPlayer.getCurrentPosition() == board.getTotalNodes()) {
+            // Declare winner and stop the game
             JOptionPane.showMessageDialog(mainApp, "🎉 Selamat! " + currentPlayer.getName() + " telah memenangkan permainan!", "Permainan Selesai", JOptionPane.INFORMATION_MESSAGE);
+            gameOver = true;
+            // Clear remaining turns and disable controls
+            turnQueue.clear();
+            currentPlayer = null;
+            if (controlPanel != null) {
+                controlPanel.updateTurnInfo(null);
+                controlPanel.enableRollButton(false);
+            }
+            // Refresh view
+            mainApp.repaint();
+
+            // Prompt to restart the game (ask user whether to restart and re-enter player counts).
+            SwingUtilities.invokeLater(() -> {
+                int res = JOptionPane.showConfirmDialog(mainApp,
+                        "Permainan selesai. Ingin memulai ulang dan memasukkan jumlah pemain lagi?",
+                        "Mulai Ulang?", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (res == JOptionPane.YES_OPTION) {
+                    // Rebuild the game with the same board size; this will recreate GameEngine and prompt for players.
+                    mainApp.updateBoardNodeCount(board.getTotalNodes());
+                } else {
+                    // If user chooses NO (or closes), exit the application immediately
+                    System.exit(0);
+                }
+            });
         }
     }
 
