@@ -7,8 +7,10 @@ class Player {
     private final boolean isAI;
 
     // --- FITUR BARU ---
-    private int turnCount = 0;           // Menghitung berapa kali pemain jalan
-    private boolean autoPilotActive = false; // Status Dijkstra Permanen
+    private int turnCount = 0;
+    // Mengganti autoPilotActive menjadi primePowerActive
+    // Status ini menentukan apakah pemain punya "kekuatan" di turn ini (bisa naik tangga & cari jalan pintas)
+    private boolean primePowerActive = false;
     // ------------------
 
     public Player(String name, Color color) {
@@ -20,18 +22,16 @@ class Player {
         this.currentPosition = 0; // start outside (node 0)
         this.color = color;
         this.isAI = isAI;
-        // Reset status saat inisialisasi
         this.turnCount = 0;
-        this.autoPilotActive = false;
+        this.primePowerActive = false;
     }
 
-    // --- GETTERS & SETTERS BARU ---
     public int getTurnCount() { return turnCount; }
     public void incrementTurnCount() { turnCount++; }
 
-    public boolean isAutoPilotActive() { return autoPilotActive; }
-    public void setAutoPilotActive(boolean active) { this.autoPilotActive = active; }
-    // ------------------------------
+    // Getter & Setter untuk Prime Power
+    public boolean isPrimePowerActive() { return primePowerActive; }
+    public void setPrimePowerActive(boolean active) { this.primePowerActive = active; }
 
     public boolean isAI() { return isAI; }
     public String getName() { return name; }
@@ -41,7 +41,8 @@ class Player {
 
     @Override
     public String toString() {
-        String status = autoPilotActive ? " [AUTO-PILOT]" : "";
+        // Tampilkan status POWER jika aktif
+        String status = primePowerActive ? " [PRIME POWER]" : "";
         return name + (isAI ? " (AI)" : "") + " (Pos: " + currentPosition + ")" + status;
     }
 }
