@@ -21,7 +21,7 @@ class BoardPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         drawNodes(g2d);
-        drawConnections(g2d); // Pastikan ini dipanggil
+        drawConnections(g2d);
         drawPlayers(g2d);
     }
 
@@ -57,6 +57,24 @@ class BoardPanel extends JPanel {
             g2d.setStroke(new BasicStroke(2));
             g2d.drawRect(x, y, size, size);
 
+            // --- VISUALISASI SCORE (KOIN) ---
+            if (board.hasScore(node.getId())) {
+                int val = board.getScoreValue(node.getId());
+                // Gambar lingkaran kuning (Koin) di pojok kiri atas
+                g2d.setColor(new Color(255, 215, 0)); // Emas
+                g2d.fillOval(x + 5, y + 5, 22, 22);
+                g2d.setColor(Color.BLACK);
+                g2d.setStroke(new BasicStroke(1));
+                g2d.drawOval(x + 5, y + 5, 22, 22);
+
+                // Tulis nilai score kecil
+                g2d.setFont(new Font("Arial", Font.BOLD, 10));
+                g2d.drawString(String.valueOf(val), x + 10, y + 20);
+            }
+            // --------------------------------
+
+            // Kembalikan font besar untuk nomor node
+            g2d.setFont(new Font("Arial", Font.BOLD, 18));
             String label = String.valueOf(node.getId());
             FontMetrics fm = g2d.getFontMetrics();
             int textX = x + (size - fm.stringWidth(label)) / 2;
@@ -75,7 +93,6 @@ class BoardPanel extends JPanel {
         }
     }
 
-    // Draw a 5-point star centered at (cx,cy)
     private void drawStar(Graphics2D g2d, int cx, int cy, int outerR, int innerR, Color color) {
         double angle = Math.PI / 2 * 3;
         int points = 5;
@@ -95,7 +112,6 @@ class BoardPanel extends JPanel {
         g2d.drawPolygon(star);
     }
 
-    // Menggambar garis koneksi (Tangga/Ular)
     private void drawConnections(Graphics2D g2d) {
         Map<Integer, Integer> connections = board.getConnections();
         g2d.setStroke(new BasicStroke(4));
@@ -114,7 +130,6 @@ class BoardPanel extends JPanel {
             int x2 = endNode.getX() + BoardNode.SIZE / 2;
             int y2 = endNode.getY() + BoardNode.SIZE / 2;
 
-            // Warna: Hijau untuk Tangga (Naik), Merah untuk Ular (Turun)
             if (endId > startId) {
                 g2d.setColor(new Color(0, 180, 0, 180)); // Hijau Transparan
             } else {
@@ -122,16 +137,12 @@ class BoardPanel extends JPanel {
             }
 
             g2d.drawLine(x1, y1, x2, y2);
-
-            // Gambar lingkaran kecil di tujuan
             g2d.fillOval(x2 - 6, y2 - 6, 12, 12);
         }
     }
 
     private void drawPlayers(Graphics2D g2d) {
         int playerSize = 18;
-
-        // Build list including outside node (id 0)
         List<BoardNode> allNodes = new ArrayList<>(board.getNodes());
         if (board.getOutsideNode() != null) allNodes.add(board.getOutsideNode());
 
@@ -141,7 +152,6 @@ class BoardPanel extends JPanel {
 
             int centerX;
             int centerY;
-            // Place outside node visually to the left of node 1 (so it's visible)
             if (node.getId() == 0) {
                 BoardNode n1 = board.getNodeById(1);
                 if (n1 != null) {
@@ -157,8 +167,6 @@ class BoardPanel extends JPanel {
             }
 
             int n = players.size();
-
-            // radius for arrangement; reduce when many players
             int maxRadius = node.getSize() / 2 - playerSize/2 - 4;
             int radius = Math.max( (n <= 1 ? 0 : Math.min(maxRadius,  (playerSize + 6) * n / 2 )), 10);
 
@@ -167,11 +175,10 @@ class BoardPanel extends JPanel {
                 int drawX, drawY;
 
                 if (n == 1) {
-                    // single player: center
                     drawX = centerX - playerSize / 2;
                     drawY = centerY - playerSize / 2;
                 } else {
-                    double angle = -Math.PI/2 + (2 * Math.PI * i) / n; // start top, evenly spaced
+                    double angle = -Math.PI/2 + (2 * Math.PI * i) / n;
                     int px = (int) Math.round(centerX + Math.cos(angle) * radius);
                     int py = (int) Math.round(centerY + Math.sin(angle) * radius);
                     drawX = px - playerSize / 2;

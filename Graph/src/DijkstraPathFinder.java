@@ -76,17 +76,15 @@ public class DijkstraPathFinder {
         List<Integer> neighbors = new ArrayList<>();
         int totalNodes = board.getTotalNodes();
 
-        // --- PERBAIKAN BUG DISINI ---
         // 1. Cek apakah KITA SEDANG BERDIRI DI KAKI TANGGA?
-        // (Kasus: Turn sebelumnya mendarat di node prima yang punya tangga)
+        // (Penting agar Dijkstra tahu kita bisa langsung naik tangga dari posisi sekarang)
         if (board.getConnections().containsKey(nodeId)) {
             int dest = board.getConnections().get(nodeId);
-            // Pastikan ini Tangga (Naik), bukan Ular
+            // Pastikan ini Tangga (Naik)
             if (dest > nodeId) {
                 neighbors.add(dest);
             }
         }
-        // -----------------------------
 
         // 2. Cek Langkah Normal ke Depan (nodeId + 1)
         int nextNode = nodeId + 1;
@@ -94,11 +92,11 @@ public class DijkstraPathFinder {
             neighbors.add(nextNode);
 
             // 3. Cek apakah node di depan (nodeId + 1) adalah Kaki Tangga?
-            // (Kasus: Bypass/Passing Through)
+            // (Kasus: Bypass/Passing Through - jalan ke depan lalu langsung naik)
             if (board.getConnections().containsKey(nextNode)) {
                 int dest = board.getConnections().get(nextNode);
                 if (dest > nextNode) {
-                    neighbors.add(dest); // Langsung loncat ke ujung tangga
+                    neighbors.add(dest);
                 }
             }
         }

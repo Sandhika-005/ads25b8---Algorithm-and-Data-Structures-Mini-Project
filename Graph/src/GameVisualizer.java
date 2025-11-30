@@ -1,27 +1,24 @@
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
+import java.util.List;
 
 public class GameVisualizer extends JFrame {
     private BoardPanel boardPanel;
     private GameControlPanel controlPanel;
     private GameEngine gameEngine;
-
-    // --- AUDIO BARU ---
     private AudioPlayer audioPlayer;
-    // --- AUDIO BARU ---
+    private int currentNodeCount = 64;
 
     public GameVisualizer() {
         setTitle("Dynamic Snake & Ladder Game (64 Nodes)");
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
-        // Menambahkan Window Listener untuk menutup audio saat aplikasi ditutup
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent e) {
                 if (audioPlayer != null) {
                     audioPlayer.close();
                 }
-                // Pastikan exit setelah semua resource ditutup
                 System.exit(0);
             }
         });
@@ -29,47 +26,44 @@ public class GameVisualizer extends JFrame {
         setSize(1000, 850);
         setLocationRelativeTo(null);
 
-        // --- AUDIO BARU: Inisialisasi AudioPlayer di awal
         audioPlayer = new AudioPlayer();
-        // --- AUDIO BARU ---
-
-        Board board = new Board(64);
-        // --- UBAH: Kirim AudioPlayer ke GameEngine
-        gameEngine = new GameEngine(board, this, audioPlayer);
-        boardPanel = new BoardPanel(board, gameEngine);
-
-        // --- UBAH: Kirim AudioPlayer ke GameControlPanel
-        controlPanel = new GameControlPanel(gameEngine, boardPanel, this, audioPlayer);
-
-        gameEngine.setControlPanel(controlPanel);
+        initGameComponents(64); // Default
 
         showMainScreen();
-
-        // --- AUDIO BARU: Mulai Backsound
         audioPlayer.playBackgroundMusic();
-        // --- AUDIO BARU ---
-
-        // Do not auto-prompt for players here. User should set node count and press START GAME.
     }
 
-    // Rebuild board/game with new node count
-    public void updateBoardNodeCount(int nodeCount) {
+    private void initGameComponents(int nodeCount) {
+        this.currentNodeCount = nodeCount;
         Board board = new Board(nodeCount);
-        // --- UBAH: Kirim AudioPlayer ke GameEngine baru
         this.gameEngine = new GameEngine(board, this, audioPlayer);
         this.boardPanel = new BoardPanel(board, gameEngine);
-
-        // --- UBAH: Kirim AudioPlayer ke GameControlPanel baru
         this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this, audioPlayer);
         this.gameEngine.setControlPanel(controlPanel);
-        showMainScreen();
+    }
 
-        // Mulai ulang backsound jika sedang tidak di-mute
+    public void updateBoardNodeCount(int nodeCount) {
+        initGameComponents(nodeCount);
+        showMainScreen();
         if (!audioPlayer.isMuted()) {
             audioPlayer.playBackgroundMusic();
         }
-        // Do not auto-prompt after changing node count so user can fine-tune nodes and then press START GAME.
     }
+
+    // --- RESTART GAME ---
+    public void restartGame(List<Player> existingPlayers) {
+        // Init ulang komponen (board baru, score acak baru)
+        initGameComponents(this.currentNodeCount);
+
+        showMainScreen();
+        if (!audioPlayer.isMuted()) {
+            audioPlayer.playBackgroundMusic();
+        }
+
+        // Setup game dengan pemain lama
+        this.gameEngine.setupGame(existingPlayers);
+    }
+    // --------------------
 
     private void showMainScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -83,9 +77,6 @@ public class GameVisualizer extends JFrame {
 
     public static void main(String[] args) {
         JFrame.setDefaultLookAndFeelDecorated(true);
-        GameVisualizer frame = new GameVisualizer();
-        // Set default close operation ke DO_NOTHING agar Window Listener yang menangani penutupan
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        SwingUtilities.invokeLater(() -> frame.setVisible(true));
+        SwingUtilities.invokeLater(() -> new GameVisualizer().setVisible(true));
     }
 }
