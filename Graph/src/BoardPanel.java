@@ -4,14 +4,23 @@ import java.awt.geom.Line2D;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import javax.imageio.ImageIO;
 
 class BoardPanel extends JPanel {
     private final Board board;
     private final GameEngine gameEngine;
 
+    // --- Variabel untuk Gambar Latar Belakang ---
+    private BufferedImage backgroundImage;
+    private final String BG_IMAGE_RESOURCE_PATH = "Gambar/back3.jpg";
+    // ---------------------------------------------------
+
     // --- VARIABEL ANIMASI ---
     private Player animatingPlayer = null;
-    private double animX, animY; // Posisi saat ini untuk animasi
+    private double animX, animY;
     private double targetX, targetY;
     private double startX, startY;
     private long animStartTime;
@@ -25,23 +34,35 @@ class BoardPanel extends JPanel {
         this.gameEngine = gameEngine;
         setBackground(new Color(30, 40, 60));
 
-        // Timer untuk update frame animasi (approx 60 FPS)
+        // --- Memuat Gambar Latar Belakang menggunakan ClassLoader ---
+        try (InputStream is = BoardPanel.class.getResourceAsStream(BG_IMAGE_RESOURCE_PATH)) {
+            if (is != null) {
+                backgroundImage = ImageIO.read(is);
+                setOpaque(true);
+            } else {
+                System.err.println("Gagal menemukan resource: " + BG_IMAGE_RESOURCE_PATH + ". Pastikan folder 'Gambar' ada di direktori source root.");
+                backgroundImage = null;
+            }
+        } catch (IOException e) {
+            System.err.println("Error saat membaca gambar: " + BG_IMAGE_RESOURCE_PATH + ". Menggunakan warna solid.");
+            e.printStackTrace();
+            backgroundImage = null;
+        }
+        // ------------------------------------------
+
         animTimer = new Timer(16, e -> updateAnimation());
     }
 
-    // --- HELPER BARU: Menghitung Centroid Node ---
-    // Centroid adalah titik pusat gravitasi yang stabil untuk penempatan konten
+    // --- HELPER: Menghitung Centroid Node ---
     private Point getCentroid(BoardNode node) {
         int size = BoardNode.SIZE;
         int centerX = node.getX() + size / 2;
         int centroidY;
 
         if (node.isPointUp()) {
-            // Segitiga ke atas: Centroid lebih dekat ke alas (y + 2/3 * size)
-            centroidY = (int) (node.getY() + size * 0.60); // Disesuaikan sedikit ke atas
+            centroidY = (int) (node.getY() + size * 0.60);
         } else {
-            // Segitiga ke bawah: Centroid lebih dekat ke puncak (y + 1/3 * size)
-            centroidY = (int) (node.getY() + size * 0.40); // Disesuaikan sedikit ke bawah
+            centroidY = (int) (node.getY() + size * 0.40);
         }
         return new Point(centerX, centroidY);
     }
@@ -53,7 +74,7 @@ class BoardPanel extends JPanel {
         Point startCenter = getCentroid(startNode);
         Point targetCenter = getCentroid(endNode);
 
-        double playerRadius = 9; // 18/2
+        double playerRadius = 9;
 
         this.startX = startCenter.x - playerRadius;
         this.startY = startCenter.y - playerRadius;
@@ -97,15 +118,50 @@ class BoardPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
+
+        // --- MENGGAMBAR BACKGROUND DENGAN LOGIKA PEMOTONGAN DAN KUALITAS TINGGI ---
+        if (backgroundImage != null) {
+            int panelW = getWidth();
+            int panelH = getHeight();
+            int imageW = backgroundImage.getWidth();
+            int imageH = backgroundImage.getHeight();
+
+            double panelRatio = (double) panelW / panelH;
+            double imageRatio = (double) imageW / imageH;
+
+            int drawW, drawH;
+            int drawX, drawY;
+
+            if (imageRatio > panelRatio) {
+                drawH = panelH;
+                drawW = (int) (imageRatio * drawH);
+                drawX = (panelW - drawW) / 2; // Pusatkan secara horizontal
+                drawY = 0;
+            } else {
+                drawW = panelW;
+                drawH = (int) (drawW / imageRatio);
+                drawY = (panelH - drawH) / 2; // Pusatkan secara vertikal
+                drawX = 0;
+            }
+
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+                    RenderingHints.VALUE_RENDER_QUALITY);
+
+            g2d.drawImage(backgroundImage, drawX, drawY, drawW, drawH, this);
+        } else {
+            super.paintComponent(g);
+        }
+        // ---------------------------------------------
+
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         drawNodes(g2d);
         drawConnectionsVisuals(g2d);
         drawPlayers(g2d);
 
-        // Gambar Player yang sedang animasi
         if (animatingPlayer != null) {
             int playerSize = 18;
             g2d.setColor(animatingPlayer.getColor());
@@ -142,7 +198,6 @@ class BoardPanel extends JPanel {
             }
             Polygon triangle = new Polygon(xs, ys, 3);
 
-            // --- Logika Warna Node ---
             Color baseColor;
             if (node.getId() % 2 == 0) baseColor = new Color(220, 230, 240);
             else baseColor = new Color(190, 210, 230);
@@ -156,30 +211,34 @@ class BoardPanel extends JPanel {
             g2d.setStroke(new BasicStroke(2));
             g2d.draw(triangle);
 
-            // --- Hitung Titik Centroid (Pusat) ---
             Point center = getCentroid(node);
             int contentCenterX = center.x;
             int centroidY = center.y;
 
-            // Tentukan ukuran font ID berdasarkan ukuran node
             int idFontSize = (size > 40) ? 18 : (size > 25 ? 14 : 10);
 
-            // --- Variabel Posisi Relatif untuk Penyesuaian Kerapian ---
-            int idDrawY = centroidY;
             int scoreOffset = (size > 40) ? 18 : (size / 3);
+
+            // --- Gambar Node ID (Angka) ---
+            g2d.setFont(new Font("Arial", Font.BOLD, idFontSize));
+            String label = String.valueOf(node.getId());
+            FontMetrics fm = g2d.getFontMetrics();
+            g2d.setColor(Color.BLACK);
+
+            // Posisikan ID TEPAT di pusat Centroid (idDrawY)
+            int idDrawY = centroidY;
+            g2d.drawString(label, contentCenterX - fm.stringWidth(label) / 2, idDrawY + fm.getAscent() / 2 - 4);
 
             // --- Gambar Skor (Oval) ---
             if (board.hasScore(node.getId())) {
                 int val = board.getScoreValue(node.getId());
-                // Ukuran Oval disesuaikan dengan SIZE node
                 int ovalSize = Math.max(16, (int)(size * 0.35));
+                int margin = Math.max(5, (int)(size * 0.1));
 
-                // Posisikan Oval (Skor) di BAWAH Centroid
-                int ovalX = contentCenterX - ovalSize / 2;
-                int ovalY = centroidY + scoreOffset / 2;
-
-                // Geser ID ke atas Centroid
-                idDrawY = centroidY - scoreOffset / 2;
+                // --- POSISI BARU: Sudut Kanan Atas (Absolute to Bounding Box) ---
+                int ovalX = (x + size) - ovalSize - margin; // Kanan Bounding Box - ukuran oval - margin
+                int ovalY = y + margin;                     // Atas Bounding Box + margin
+                // -----------------------------------------------------------------
 
                 g2d.setColor(new Color(255, 215, 0));
                 g2d.fillOval(ovalX, ovalY, ovalSize, ovalSize);
@@ -195,37 +254,18 @@ class BoardPanel extends JPanel {
                 g2d.drawString(scoreLabel, ovalX + (ovalSize - fmScore.stringWidth(scoreLabel)) / 2, ovalY + (ovalSize + fmScore.getAscent()) / 2 - 2);
             }
 
-            // --- Gambar Node ID (Angka) ---
-            g2d.setFont(new Font("Arial", Font.BOLD, idFontSize));
-            String label = String.valueOf(node.getId());
-            FontMetrics fm = g2d.getFontMetrics();
-            g2d.setColor(Color.BLACK);
-
-            if (!board.hasScore(node.getId())) {
-                // Jika tidak ada skor, pusatkan ID
-                idDrawY = centroidY;
-            }
-
-            // Posisikan ID di titik idDrawY
-            g2d.drawString(label, contentCenterX - fm.stringWidth(label) / 2, idDrawY + fm.getAscent() / 2 - 4);
-
             // --- Gambar Bintang ---
-            if (node.getId() % 5 == 0 && node.getId() != 1 && node.getId() != board.getTotalNodes()) {
+            if (node.getId() % 5 == 0 && node.getId() != board.getTotalNodes()) {
                 int starR = Math.max(4, (int)(size * 0.1));
 
-                // Atur posisi bintang relatif terhadap Centroid
-                int starX = contentCenterX + (size / 4);
+                // Posisikan bintang di pojok Kiri Atas (jauh dari skor di Kanan Atas)
+                int starX = contentCenterX - (size / 4);
                 int starY;
 
                 if (isPointUp) {
-                    // Segitiga ke atas: Bintang di sudut kiri atas (jika tidak ada skor)
-                    starY = centroidY - (size / 4);
-                    if (board.hasScore(node.getId())) {
-                        starY = centroidY - scoreOffset;
-                    }
+                    starY = centroidY - scoreOffset;
                 } else {
-                    // Segitiga ke bawah: Bintang di sudut kiri bawah
-                    starY = centroidY + (size / 4);
+                    starY = centroidY + scoreOffset;
                 }
 
                 drawStar(g2d, starX, starY, starR, starR / 2, new Color(255, 215, 0));
@@ -274,10 +314,10 @@ class BoardPanel extends JPanel {
 
             Color mainColor, rungColor;
             if (endId > startId) {
-                mainColor = new Color(34, 139, 34, 220); // Tangga Hijau
+                mainColor = new Color(34, 139, 34, 220);
                 rungColor = new Color(139, 69, 19, 220);
             } else {
-                mainColor = new Color(220, 20, 60, 220); // Ular Merah
+                mainColor = new Color(220, 20, 60, 220);
                 rungColor = new Color(255, 99, 71, 220);
             }
 
@@ -325,7 +365,6 @@ class BoardPanel extends JPanel {
             int centerY = center.y;
 
             if (node.getId() == 0) {
-                // Logika outsideNode
                 BoardNode n1 = board.getNodeById(1);
                 if (n1 != null) {
                     centerX = n1.getX() - BoardNode.SIZE/2 - 20;
@@ -337,7 +376,6 @@ class BoardPanel extends JPanel {
             }
 
             int n = players.size();
-            // Radius penempatan pemain disesuaikan agar tidak keluar dari node yang mungkin kecil
             int maxRadius = size / 2 - playerSize/2 - 4;
             int radius = Math.max( (n <= 1 ? 0 : Math.min(maxRadius,  (playerSize + 6) * n / 2 )), 10);
             radius = Math.min(radius, (int)(size * 0.25));

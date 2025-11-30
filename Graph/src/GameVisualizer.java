@@ -14,7 +14,7 @@ public class GameVisualizer extends JFrame {
     private JLabel topWinsLabel;
 
     public GameVisualizer() {
-        setTitle("Pyramid Adventure: Petualangan di Gurun Mesir (64 Nodes)"); // Judul Baru
+        setTitle("Pyramid Adventure: Petualangan di Gurun Mesir"); // Judul Baru
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
