@@ -253,14 +253,16 @@ class GameEngine {
                 } else {
                     System.out.println(currentPlayer.getName() + " melewati tangga karena tidak punya Prime Power.");
                 }
-            } else if (target < newPosId) { // Ular Turun
-                targetConnectionNode = target;
-                connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nKembali dari Node " + newPosId + " ke Node " + target;
-                connectionTriggered = true;
             }
+            // else if (target < newPosId) { // Ular Turun - DIHAPUS
+            //     targetConnectionNode = target;
+            //     connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nKembali dari Node " + newPosId + " ke Node " + target;
+            //     connectionTriggered = true;
+            // }
         }
 
-        // Cek Koneksi (Mundur/Jatuh)
+        // Cek Koneksi (Mundur/Jatuh) - DIHAPUS
+        /*
         if (direction < 0) {
             for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
                 if (entry.getValue() == newPosId) {
@@ -276,6 +278,7 @@ class GameEngine {
                 }
             }
         }
+        */
 
         if (connectionTriggered && targetConnectionNode != -1) {
             // Pause timer gerakan utama

@@ -1,4 +1,3 @@
-import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
@@ -38,7 +37,7 @@ class Board {
         // 2. Init Nodes dengan tata letak PIRAMIDA
         initializeBoardNodes();
 
-        // 3. Init Tangga & Ular (Disederhanakan)
+        // 3. Init Tangga (Randomized & Ascending Only - 5 links)
         initializeSimpleConnections();
 
         // 4. Init Score (Disederhanakan)
@@ -148,16 +147,47 @@ class Board {
         Collections.sort(nodes, Comparator.comparingInt(BoardNode::getId));
     }
 
-    // --- LOGIKA KONEKSI & SCORE SEDERHANA (Disimpan) ---
+    // --- LOGIKA KONEKSI & SCORE SEDERHANA (Modified for Random Ladders - Ascending Only) ---
     private void initializeSimpleConnections() {
         connections.clear();
-        // Tangga (Naik)
-        connections.put(5, 15);
-        connections.put(20, 35);
-        connections.put(45, 60);
-        // Ular (Turun)
-        connections.put(30, 10);
-        connections.put(55, 40);
+        Random rnd = new Random();
+
+        // Tentukan jumlah tangga yang akan di-generate (5 tangga sesuai permintaan)
+        // Batasi maksimal 5 atau totalNodes / 10, mana yang lebih kecil, agar tidak terlalu padat
+        int numLadders = Math.min(5, totalNodes / 10);
+        if (numLadders < 1 && totalNodes > 10) numLadders = 1;
+
+        // Tentukan lompatan maksimum tangga (misalnya 1/4 dari total nodes)
+        int maxJump = totalNodes / 4;
+        if (maxJump < 5) maxJump = 5;
+
+        for (int i = 0; i < numLadders; i++) {
+            int startNode;
+            int endNode;
+
+            do {
+                // 1. Pilih Start Node (Node 2 hingga Node totalNodes - maxJump - 1)
+                // Pastikan ada ruang untuk melompat minimal 2 langkah ke atas
+                startNode = rnd.nextInt(totalNodes - maxJump - 1) + 2;
+
+                // 2. Tentukan End Node (harus di atas startNode)
+                // Lompatan minimal 2 langkah
+                int jump = rnd.nextInt(maxJump - 1) + 2;
+                endNode = startNode + jump;
+
+                // 3. Batasi End Node agar tidak mencapai node terakhir/finish (totalNodes)
+                if (endNode >= totalNodes) {
+                    endNode = totalNodes - 1; // Cap di node kedua dari akhir
+                }
+
+            } while (startNode >= endNode || // Pastikan koneksi tetap naik
+                    connections.containsKey(startNode) || connections.containsValue(startNode) || // Hindari konflik
+                    connections.containsKey(endNode) || connections.containsValue(endNode) ||
+                    startNode < 2 || endNode >= totalNodes);
+
+            // Tambahkan koneksi tangga (ascending only)
+            connections.put(startNode, endNode);
+        }
     }
 
     private void initializeSimpleScores() {

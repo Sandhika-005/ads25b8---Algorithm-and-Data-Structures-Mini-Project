@@ -94,18 +94,20 @@ public class GameVisualizer extends JFrame {
         panel.add(title);
         panel.add(Box.createVerticalStrut(20));
 
-        JLabel topWinsLabel = new JLabel("<html><center><b>🏆 TOP 3 WINS 🏆</b></center><br>Belum ada data.</html>");
-        topWinsLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        topWinsLabel.setForeground(Color.WHITE);
-        topWinsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(topWinsLabel);
+        // PERBAIKAN: Menugaskan ke variabel anggota (this.topWinsLabel)
+        this.topWinsLabel = new JLabel("<html><center><b>🏆 TOP 3 WINS 🏆</b></center><br>Belum ada data.</html>");
+        this.topWinsLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        this.topWinsLabel.setForeground(Color.WHITE);
+        this.topWinsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.add(this.topWinsLabel);
         panel.add(Box.createVerticalStrut(20));
 
-        JLabel topScoresLabel = new JLabel("<html><center><b>💰 TOP 3 HIGH SCORES 💰</b></center><br>Belum ada data.</html>");
-        topScoresLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        topScoresLabel.setForeground(Color.WHITE);
-        topScoresLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(topScoresLabel);
+        // PERBAIKAN: Menugaskan ke variabel anggota (this.topScoresLabel)
+        this.topScoresLabel = new JLabel("<html><center><b>💰 TOP 3 HIGH SCORES 💰</b></center><br>Belum ada data.</html>");
+        this.topScoresLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        this.topScoresLabel.setForeground(Color.WHITE);
+        this.topScoresLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.add(this.topScoresLabel);
         panel.add(Box.createVerticalStrut(20));
 
         panel.add(Box.createVerticalGlue());
@@ -123,10 +125,13 @@ public class GameVisualizer extends JFrame {
                 wins.replace("\n", "<br>") + "</html>";
 
         SwingUtilities.invokeLater(() -> {
-            // Asumsi label di LeaderboardPanel dapat diakses atau diperbarui melalui GameVisualizer
-            // Karena kita tidak memiliki properti label di GameVisualizer, ini mungkin perlu penyesuaian jika label tidak terupdate.
-            // Untuk saat ini, kita mengandalkan GameVisualizer untuk menahan JLabel-nya.
-            // (Kode GameVisualizer sebelumnya tidak menunjukkan label di sini, tetapi saya akan menaruhnya di sini)
+            // PERBAIKAN: Perbarui label anggota yang sudah terhubung ke panel
+            if (this.topScoresLabel != null) {
+                this.topScoresLabel.setText(formattedScores);
+            }
+            if (this.topWinsLabel != null) {
+                this.topWinsLabel.setText(formattedWins);
+            }
         });
     }
 
