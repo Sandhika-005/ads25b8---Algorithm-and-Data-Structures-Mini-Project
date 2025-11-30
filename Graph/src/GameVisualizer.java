@@ -27,7 +27,7 @@ public class GameVisualizer extends JFrame {
         setLocationRelativeTo(null);
 
         audioPlayer = new AudioPlayer();
-        initGameComponents(64); // Default
+        initGameComponents(64);
 
         showMainScreen();
         audioPlayer.playBackgroundMusic();
@@ -42,6 +42,12 @@ public class GameVisualizer extends JFrame {
         this.gameEngine.setControlPanel(controlPanel);
     }
 
+    // --- METHOD BARU: AKSESOR UNTUK ENGINE ---
+    public BoardPanel getBoardPanel() {
+        return boardPanel;
+    }
+    // -----------------------------------------
+
     public void updateBoardNodeCount(int nodeCount) {
         initGameComponents(nodeCount);
         showMainScreen();
@@ -50,20 +56,14 @@ public class GameVisualizer extends JFrame {
         }
     }
 
-    // --- RESTART GAME ---
     public void restartGame(List<Player> existingPlayers) {
-        // Init ulang komponen (board baru, score acak baru)
         initGameComponents(this.currentNodeCount);
-
         showMainScreen();
         if (!audioPlayer.isMuted()) {
             audioPlayer.playBackgroundMusic();
         }
-
-        // Setup game dengan pemain lama
         this.gameEngine.setupGame(existingPlayers);
     }
-    // --------------------
 
     private void showMainScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());

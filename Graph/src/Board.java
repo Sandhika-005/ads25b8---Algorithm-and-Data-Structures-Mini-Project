@@ -1,3 +1,4 @@
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
@@ -21,12 +22,123 @@ class Board {
         this.connections = new HashMap<>();
         this.nodeScores = new HashMap<>();
 
+        // 1. Init Nodes dulu agar kita punya koordinat X,Y untuk cek visual
         initializeBoardNodes();
-        initializeRandomConnections();
+
+        // 2. Init Tangga dengan aturan khusus & cek silang
+        initializeSpecificLadders();
+
+        // 3. Init Score
         initializeRandomScores();
 
         outsideNode = new BoardNode(0, -BoardNode.SIZE - 20, -BoardNode.SIZE - 20);
     }
+
+    // --- LOGIKA UTAMA: 3 VERTIKAL, 2 DIAGONAL, TANPA SILANG ---
+    private void initializeSpecificLadders() {
+        Random rnd = new Random();
+        connections.clear();
+
+        // --- STEP 1: 3 TANGGA VERTIKAL (Lurus ke atas) ---
+        int verticalCount = 0;
+        int attempts = 0;
+        while (verticalCount < 3 && attempts < 2000) {
+            attempts++;
+            // Pilih start node (hindari baris paling atas)
+            int startId = rnd.nextInt(totalNodes - NODES_PER_ROW - 1) + 2;
+
+            // Hitung posisi visual X start node
+            int startRow = (startId - 1) / NODES_PER_ROW;
+            int startColIdx = (startId - 1) % NODES_PER_ROW;
+            // Jika row genap (0,2..) arah kiri->kanan. Jika ganjil (1,3..) kanan->kiri.
+            int visualX = (startRow % 2 == 0) ? startColIdx : (NODES_PER_ROW - 1 - startColIdx);
+
+            // Tentukan target row (naik 1 - 3 baris)
+            int rowsUp = rnd.nextInt(3) + 1;
+            int endRow = startRow + rowsUp;
+
+            if (endRow * NODES_PER_ROW >= totalNodes) continue;
+
+            // Cari ID di endRow yang memiliki visualX SAMA (Vertikal)
+            int endColIdx = (endRow % 2 == 0) ? visualX : (NODES_PER_ROW - 1 - visualX);
+            int endId = endRow * NODES_PER_ROW + endColIdx + 1;
+
+            if (endId > totalNodes) continue;
+
+            // Validasi Node & Crossing
+            if (isValidConnection(startId, endId)) {
+                connections.put(startId, endId);
+                verticalCount++;
+            }
+        }
+
+        // --- STEP 2: 2 TANGGA DIAGONAL (Miring, bukan horizontal) ---
+        int diagonalCount = 0;
+        attempts = 0;
+        while (diagonalCount < 2 && attempts < 2000) {
+            attempts++;
+            // Start bebas
+            int startId = rnd.nextInt(totalNodes - NODES_PER_ROW - 1) + 2;
+            int startRow = (startId - 1) / NODES_PER_ROW;
+
+            // Cari End Node
+            // Syarat Diagonal: Beda Baris (rowsUp > 0) DAN Beda Kolom Visual
+            int rowsUp = rnd.nextInt(3) + 1; // Naik 1-3 baris
+            int endRow = startRow + rowsUp;
+
+            if (endRow * NODES_PER_ROW >= totalNodes) continue;
+
+            // Random kolom di baris tujuan
+            int endColIdx = rnd.nextInt(NODES_PER_ROW);
+            int endId = endRow * NODES_PER_ROW + endColIdx + 1;
+
+            if (endId > totalNodes) continue;
+
+            // Cek apakah benar diagonal (Visual X tidak boleh sama)
+            if (getVisualX(startId) == getVisualX(endId)) continue;
+
+            // Validasi Node & Crossing
+            if (isValidConnection(startId, endId)) {
+                connections.put(startId, endId);
+                diagonalCount++;
+            }
+        }
+    }
+
+    // Helper untuk cek validitas koneksi
+    private boolean isValidConnection(int startId, int endId) {
+        // 1. Cek Node Sibuk (sudah dipakai)
+        if (isNodeBusy(startId) || isNodeBusy(endId)) return false;
+
+        // 2. Cek Intersection (Silang) dengan tangga yang SUDAH ADA
+        BoardNode p1 = getNodeById(startId);
+        BoardNode p2 = getNodeById(endId);
+
+        for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
+            BoardNode p3 = getNodeById(entry.getKey());
+            BoardNode p4 = getNodeById(entry.getValue());
+
+            // Cek apakah garis (p1-p2) memotong garis (p3-p4)
+            if (Line2D.linesIntersect(p1.getX(), p1.getY(), p2.getX(), p2.getY(),
+                    p3.getX(), p3.getY(), p4.getX(), p4.getY())) {
+                return false; // Ada silangan!
+            }
+        }
+
+        return true;
+    }
+
+    private int getVisualX(int nodeId) {
+        int row = (nodeId - 1) / NODES_PER_ROW;
+        int col = (nodeId - 1) % NODES_PER_ROW;
+        return (row % 2 == 0) ? col : (NODES_PER_ROW - 1 - col);
+    }
+
+    private boolean isNodeBusy(int id) {
+        // Cek apakah node sudah dipakai sebagai start atau end koneksi lain
+        return connections.containsKey(id) || connections.containsValue(id) || id == 1 || id == totalNodes;
+    }
+    // ----------------------------------------------
 
     private void initializeRandomScores() {
         Random rnd = new Random();
@@ -36,6 +148,9 @@ class Board {
         while (scoreCount < maxScoreNodes) {
             int nodeId = rnd.nextInt(totalNodes - 2) + 2;
             if (nodeScores.containsKey(nodeId)) continue;
+            // Jangan taruh koin di node yang ada tangga/ular agar visual tidak numpuk
+            if (connections.containsKey(nodeId) || connections.containsValue(nodeId)) continue;
+
             int scoreValue = (rnd.nextInt(5) + 1) * 10;
             nodeScores.put(nodeId, scoreValue);
             scoreCount++;
@@ -59,24 +174,7 @@ class Board {
         return nodeScores.getOrDefault(nodeId, 0);
     }
 
-    private void initializeRandomConnections() {
-        Random rnd = new Random();
-        int connectionsMade = 0;
-
-        while (connectionsMade < 5) {
-            int nodeA = rnd.nextInt(totalNodes - 2) + 2;
-            int nodeB = rnd.nextInt(totalNodes - 2) + 2;
-            if (nodeA == nodeB) continue;
-            int start = Math.min(nodeA, nodeB);
-            int end = Math.max(nodeA, nodeB);
-            if (connections.containsKey(start)) continue;
-            if (connections.containsValue(start)) continue;
-            if (Math.abs(start - end) < 3) continue;
-            connections.put(start, end);
-            connectionsMade++;
-        }
-    }
-
+    // Dipanggil untuk inisialisasi node (X, Y)
     private void initializeBoardNodes() {
         int correctedNodeId = 1;
         int totalRows = (totalNodes + NODES_PER_ROW - 1) / NODES_PER_ROW;

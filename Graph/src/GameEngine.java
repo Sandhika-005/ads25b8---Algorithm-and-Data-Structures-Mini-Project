@@ -20,9 +20,13 @@ class GameEngine {
     private static final int MOVEMENT_INTERVAL = 350;
     private static final int AI_DELAY_MS = 800;
 
+    // Durasi animasi meluncur di tangga/ular (ms)
+    private static final int SLIDE_DURATION_MS = 1500;
+
     private final Random rng = new Random();
     private boolean gameOver = false;
     private AudioPlayer audioPlayer;
+    private Timer movementTimer;
 
     public GameEngine(Board board, GameVisualizer mainApp, AudioPlayer audioPlayer) {
         this.board = board;
@@ -45,31 +49,25 @@ class GameEngine {
         if (choice == JOptionPane.CLOSED_OPTION) { System.exit(0); return; }
 
         try {
-            if (choice == 0) { // Play vs AI
+            if (choice == 0) {
                 String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
                 if (name == null) { System.exit(0); return; }
-
                 int maxAi = MAX_PLAYERS - 1;
                 int aiCount = getValidIntInput("Masukkan jumlah AI (1.." + maxAi + "):", 1, maxAi);
                 if (aiCount == -1) { System.exit(0); return; }
 
                 List<Player> customPlayers = new ArrayList<>();
                 Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
-
                 customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
-                for (int i = 0; i < aiCount; i++) {
-                    customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
-                }
+                for (int i = 0; i < aiCount; i++) customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
                 Collections.shuffle(customPlayers);
                 setupGame(customPlayers);
 
-            } else if (choice == 1) { // PvP
+            } else if (choice == 1) {
                 int humanCount = getValidIntInput("Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", 2, MAX_PLAYERS);
                 if (humanCount == -1) { System.exit(0); return; }
-
                 List<Player> humans = new ArrayList<>();
                 Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
-
                 for (int i = 0; i < humanCount; i++) {
                     String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1));
                     if (name == null) name = "Pemain " + (i+1);
@@ -101,7 +99,6 @@ class GameEngine {
         }
     }
 
-    // Dipanggil oleh GameVisualizer saat restart
     public void setupGame(List<Player> players) {
         turnQueue.clear();
         for (Player p : players) {
@@ -162,12 +159,10 @@ class GameEngine {
         movementStack.clear();
         dijkstraMoveQueue.clear();
 
-        // JIKA PUNYA POWER -> GUNA DIJKSTRA (Akan pakai tangga jika ada)
         if (currentPlayer.isPrimePowerActive()) {
             List<Integer> path = DijkstraPathFinder.findShortestPathSteps(board, currentPos, board.getTotalNodes(), diceRoll);
             dijkstraMoveQueue.addAll(path);
         } else {
-            // JIKA TIDAK -> NORMAL WALK (Akan jalan melewati tangga tanpa naik)
             for (int i = 0; i < diceRoll; i++) {
                 movementStack.push(moveDirection);
             }
@@ -177,8 +172,8 @@ class GameEngine {
     }
 
     private void startMovementAnimation() {
-        Timer timer = new Timer(MOVEMENT_INTERVAL, null);
-        timer.addActionListener(e -> {
+        movementTimer = new Timer(MOVEMENT_INTERVAL, null);
+        movementTimer.addActionListener(e -> {
             boolean isDijkstraActive = !dijkstraMoveQueue.isEmpty();
             boolean isNormalActive = !movementStack.isEmpty();
 
@@ -192,17 +187,13 @@ class GameEngine {
                 if (isDijkstraActive) {
                     int nextNodeId = dijkstraMoveQueue.poll();
                     movePlayerToSpecificNode(nextNodeId);
-
-                    // Cek jika langkah ini sebenarnya adalah memanjat tangga (untuk tracking)
-                    // (Opsional: Bisa ditambahkan visualisasi naik tangga di sini)
-                    // Jika node baru > node lama + 1, berarti lompat (tangga)
                 } else {
                     int direction = movementStack.pop();
-                    movePlayerByOneStep(direction);
+                    movePlayerByOneStepWithAnimation(direction);
                 }
             }
         });
-        timer.start();
+        movementTimer.start();
     }
 
     private boolean isPrime(int n) {
@@ -229,7 +220,8 @@ class GameEngine {
         mainApp.repaint();
     }
 
-    private void movePlayerByOneStep(int direction) {
+    // --- LOGIKA PERGERAKAN DENGAN ANIMASI HALUS ---
+    private void movePlayerByOneStepWithAnimation(int direction) {
         if (currentPlayer == null) return;
         int oldPosId = currentPlayer.getCurrentPosition();
         int newPosId = oldPosId + direction;
@@ -237,59 +229,92 @@ class GameEngine {
         if (newPosId < 1) newPosId = 1;
         if (newPosId > board.getTotalNodes()) newPosId = board.getTotalNodes();
 
+        // 1. Pindah logika ke node tujuan langkah ini
         movePlayerToSpecificNode(newPosId);
 
         Map<Integer, Integer> connections = board.getConnections();
         boolean connectionTriggered = false;
+        int targetConnectionNode = -1;
+        String connectionMessage = "";
+        boolean isLadderUp = false;
 
-        // MAJU (+1)
+        // Cek Koneksi (Maju/Tangga/Ular)
         if (direction > 0 && connections.containsKey(newPosId)) {
             int target = connections.get(newPosId);
-            // TANGGA (Naik)
-            if (target > newPosId) {
+            if (target > newPosId) { // Tangga Naik
                 if (currentPlayer.isPrimePowerActive()) {
-                    movePlayerToSpecificNode(target);
-                    // Catat bahwa pemain telah memanjat tangga ini
-                    currentPlayer.addClimbedLadder(target);
-                    JOptionPane.showMessageDialog(mainApp, currentPlayer.getName() + " menggunakan PRIME POWER untuk naik Tangga!\nPindah ke Node " + target, "Tangga Dinaiki!", JOptionPane.INFORMATION_MESSAGE);
+                    targetConnectionNode = target;
+                    connectionMessage = currentPlayer.getName() + " menggunakan PRIME POWER untuk naik Tangga!\nPindah ke Node " + target;
                     connectionTriggered = true;
+                    isLadderUp = true;
                 } else {
                     System.out.println(currentPlayer.getName() + " melewati tangga karena tidak punya Prime Power.");
                 }
-            } else if (target < newPosId) {
-                // ULAR (Turun)
-                movePlayerToSpecificNode(target);
-                JOptionPane.showMessageDialog(mainApp, "⚠️ TERGELINCIR MUNDUR! ⚠️\nKembali dari Node " + newPosId + " ke Node " + target, "Ular!", JOptionPane.WARNING_MESSAGE);
+            } else if (target < newPosId) { // Ular Turun
+                targetConnectionNode = target;
+                connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nKembali dari Node " + newPosId + " ke Node " + target;
                 connectionTriggered = true;
             }
         }
 
-        // MUNDUR (-1)
+        // Cek Koneksi (Mundur/Jatuh)
         if (direction < 0) {
             for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
                 if (entry.getValue() == newPosId) {
                     int start = entry.getKey();
-
-                    // Jika ini Tangga (start < end/newPosId)
-                    if (start < newPosId) {
-                        // Cek apakah pemain pernah naik tangga ini?
+                    if (start < newPosId) { // Ujung Atas Tangga
                         if (currentPlayer.hasClimbedLadder(newPosId)) {
-                            movePlayerToSpecificNode(start);
-                            JOptionPane.showMessageDialog(mainApp, "⚠️ TERGELINCIR MUNDUR! ⚠️\nAnda merosot kembali ke bawah tangga.", "Koneksi Terbalik", JOptionPane.WARNING_MESSAGE);
+                            targetConnectionNode = start;
+                            connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nAnda merosot kembali ke bawah tangga.";
                             connectionTriggered = true;
                         }
-                    } else {
-                        // Jika Ular (start > end), abaikan (biasanya ular tidak naik mundur)
                     }
                     break;
                 }
             }
         }
 
-        if (connectionTriggered) {
+        if (connectionTriggered && targetConnectionNode != -1) {
+            // Pause timer gerakan utama
+            if (movementTimer != null) movementTimer.stop();
+
+            // Efek suara & pesan
             audioPlayer.playEffectImmediately("connection");
+            String title = isLadderUp ? "Tangga Dinaiki!" : (direction < 0 ? "Koneksi Terbalik" : "Ular!");
+            int msgType = isLadderUp ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE;
+            JOptionPane.showMessageDialog(mainApp, connectionMessage, title, msgType);
+
+            // --- TRIGGER ANIMASI VISUAL ---
+            BoardNode startNode = board.getNodeById(newPosId);
+            BoardNode endNode = board.getNodeById(targetConnectionNode);
+            final int finalTarget = targetConnectionNode;
+            final boolean finalIsLadderUp = isLadderUp;
+
+            // Panggil method animasi di BoardPanel
+            mainApp.getBoardPanel().animatePlayerMovement(
+                    currentPlayer,
+                    startNode,
+                    endNode,
+                    SLIDE_DURATION_MS, // Durasi meluncur (1.5 detik)
+                    () -> {
+                        // CALLBACK SETELAH ANIMASI SELESAI
+                        movePlayerToSpecificNode(finalTarget);
+                        if (finalIsLadderUp) {
+                            currentPlayer.addClimbedLadder(finalTarget);
+                        }
+
+                        // Lanjutkan timer utama jika masih ada langkah
+                        if (movementTimer != null && !movementStack.isEmpty()) {
+                            movementTimer.start();
+                        } else {
+                            checkWinCondition();
+                            finalizeTurn();
+                        }
+                    }
+            );
         }
     }
+    // ----------------------------------------------
 
     private void finalizeTurn() {
         if (gameOver) {
@@ -382,19 +407,14 @@ class GameEngine {
             SwingUtilities.invokeLater(() -> {
                 int res = JOptionPane.showConfirmDialog(mainApp, "Main lagi?", "Restart", JOptionPane.YES_NO_OPTION);
                 if (res == JOptionPane.YES_OPTION) {
-                    // LOGIKA RESTART OTOMATIS
                     List<Player> allPlayers = new ArrayList<>();
-                    // Masukkan pemenang dulu
                     if (currentPlayer != null) allPlayers.add(currentPlayer);
-                    // Masukkan sisa pemain dalam antrian
                     allPlayers.addAll(turnQueue);
 
-                    // Reset status pemain (posisi 0, score 0, dll)
                     for (Player p : allPlayers) {
                         p.resetState();
                     }
 
-                    // Restart via Visualizer
                     mainApp.restartGame(allPlayers);
                 } else {
                     audioPlayer.playEffectImmediately("gameOver");
