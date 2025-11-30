@@ -18,23 +18,19 @@ class GameControlPanel extends JPanel {
     private JButton applyNodesButton;
     private JButton startGameButton;
 
-    // --- AUDIO BARU ---
     private AudioPlayer audioPlayer;
     private JButton muteButton;
-    // --- AUDIO BARU ---
 
     private final Color GREEN_RESULT = new Color(76, 175, 80);
     private final Color RED_RESULT = new Color(244, 67, 54);
     private final Color BG_DARK = new Color(45, 60, 80);
     private final Color ACCENT_COLOR = new Color(255, 193, 7);
 
-    // --- UBAH KONSTRUKTOR: Menerima AudioPlayer
     public GameControlPanel(GameEngine ge, BoardPanel bp, GameVisualizer app, AudioPlayer ap) {
         this.gameEngine = ge;
         this.boardPanel = bp;
         this.mainApp = app;
         this.audioPlayer = ap;
-        // --- AKHIR UBAH KONSTRUKTOR
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(BG_DARK);
@@ -63,17 +59,15 @@ class GameControlPanel extends JPanel {
         add(Box.createVerticalStrut(6));
         startGameButton = createControlButton("START GAME", new Color(33, 150, 243));
         startGameButton.addActionListener(e -> {
-            // Disable node controls so user can't change mid-setup
             applyNodesButton.setEnabled(false);
             nodesSpinner.setEnabled(false);
             startGameButton.setEnabled(false);
-            // Begin player prompts (will create players / AI)
             if (gameEngine != null) SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
         });
         add(startGameButton);
         add(Box.createVerticalStrut(10));
 
-        // --- AUDIO BARU: Tombol Mute/Unmute
+        // Mute/Unmute Button
         muteButton = createControlButton("MUTE BACKSOUND", new Color(100, 100, 100));
         if (audioPlayer != null && audioPlayer.isMuted()) {
             muteButton.setText("UNMUTE BACKSOUND");
@@ -94,7 +88,6 @@ class GameControlPanel extends JPanel {
         });
         add(muteButton);
         add(Box.createVerticalStrut(10));
-        // --- AKHIR AUDIO BARU
 
         add(createDivider());
         add(Box.createVerticalStrut(30));
@@ -135,8 +128,11 @@ class GameControlPanel extends JPanel {
         add(statusLabel);
         add(Box.createVerticalStrut(10));
 
-        add(Box.createVerticalGlue());
+        add(Box.createVerticalGlue()); // Glue here to push content to the top
+        // Leaderboard logic is removed from here
     }
+
+    // Metode updateLeaderboardDisplay() dihapus
 
     private JLabel createTitleLabel(String text, Color color) {
         JLabel label = new JLabel(text);
@@ -174,7 +170,7 @@ class GameControlPanel extends JPanel {
     }
 
     private JPanel createUniqueDicePanel() {
-        diceAnimationPanel = new DiceAnimationPanel();
+        DiceAnimationPanel diceAnimationPanel = new DiceAnimationPanel();
         diceAnimationPanel.setPreferredSize(new Dimension(200, 140));
         diceAnimationPanel.setOpaque(false);
 
@@ -184,6 +180,7 @@ class GameControlPanel extends JPanel {
         container.setAlignmentX(Component.CENTER_ALIGNMENT);
         container.setMaximumSize(new Dimension(240, 180));
         container.add(diceAnimationPanel);
+        this.diceAnimationPanel = diceAnimationPanel;
 
         return container;
     }
@@ -235,7 +232,6 @@ class GameControlPanel extends JPanel {
         boardPanel.repaint();
     }
 
-    // Update the status label to show the latest node position for the provided player.
     public void updatePlayerStatus(Player p) {
         SwingUtilities.invokeLater(() -> {
             if (p != null) {
@@ -254,7 +250,6 @@ class GameControlPanel extends JPanel {
         }
     }
 
-    // --- VISUALISASI DADU 3D DIPERBAGUS DI SINI ---
     private class DiceAnimationPanel extends JPanel {
         private Timer spinTimer;
         private final int spinInterval = 50;
@@ -316,7 +311,6 @@ class GameControlPanel extends JPanel {
             int size = Math.min(w, h) - 45; // Ukuran dadu
             int depth = 12; // Ketebalan 3D
 
-            // Posisi wajah depan dadu (digeser sedikit ke atas-kiri agar ada ruang untuk sisi 3D)
             int x = (w - size) / 2 - depth / 2;
             int y = (h - size) / 2 - depth / 2;
             int arc = 35; // Sudut tumpul
@@ -330,11 +324,7 @@ class GameControlPanel extends JPanel {
             g2.fillRoundRect(x + depth, y + depth, size, size, arc, arc);
 
             // 3. Wajah Utama Dadu
-            GradientPaint bodyGrad = new GradientPaint(
-                    x, y, new Color(255, 255, 255),
-                    x + size, y + size, new Color(230, 230, 230)
-            );
-            g2.setPaint(bodyGrad);
+            g2.setColor(new Color(255, 255, 255)); // Solid White
             g2.fillRoundRect(x, y, size, size, arc, arc);
 
             // 4. Highlight Tepi (Bevel Effect) - Agar terlihat glossy

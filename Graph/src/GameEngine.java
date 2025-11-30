@@ -106,7 +106,10 @@ class GameEngine {
             placePlayerOnNode(p, 0);
         }
         currentPlayer = turnQueue.peek();
-        if (controlPanel != null) controlPanel.updateTurnInfo(currentPlayer);
+        if (controlPanel != null) {
+            controlPanel.updateTurnInfo(currentPlayer);
+        }
+        mainApp.updateLeaderboardDisplay(); // Diperbarui: Panggil melalui GameVisualizer
         mainApp.repaint();
         scheduleAutoRollIfNeeded();
     }
@@ -334,7 +337,7 @@ class GameEngine {
             if (board.hasScore(pos)) {
                 int gatheredScore = board.collectScore(pos);
                 acting.addScore(gatheredScore);
-                audioPlayer.playEffectImmediately("score"); // Diubah dari "star" menjadi "score"
+                audioPlayer.playEffectImmediately("score"); // Menggunakan sound "score"
                 JOptionPane.showMessageDialog(mainApp,
                         acting.getName() + " mendapatkan " + gatheredScore + " Poin!",
                         "Score Get!", JOptionPane.INFORMATION_MESSAGE);
@@ -372,6 +375,7 @@ class GameEngine {
             controlPanel.enableRollButton(true);
             if (currentPlayer != null) controlPanel.updatePlayerStatus(currentPlayer);
         }
+        mainApp.updateLeaderboardDisplay(); // Diperbarui: Panggil melalui GameVisualizer
         scheduleAutoRollIfNeeded();
     }
 
