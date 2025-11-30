@@ -42,46 +42,57 @@ class GameEngine {
     }
 
     public void promptForPlayers() {
-        String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)", "Custom (Choose counts)"};
-        int choice = JOptionPane.showOptionDialog(mainApp, "Pilih mode permainan:", "Pilih Mode",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, modes, modes[0]);
+        while (true) {
+            String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)", "Custom (Choose counts)"};
+            int choice = JOptionPane.showOptionDialog(mainApp, "Pilih mode permainan:", "Pilih Mode",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, modes, modes[0]);
 
-        if (choice == JOptionPane.CLOSED_OPTION) { System.exit(0); return; }
-
-        try {
-            if (choice == 0) {
-                String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
-                if (name == null) { System.exit(0); return; }
-                int maxAi = MAX_PLAYERS - 1;
-                int aiCount = getValidIntInput("Masukkan jumlah AI (1.." + maxAi + "):", 1, maxAi);
-                if (aiCount == -1) { System.exit(0); return; }
-
-                List<Player> customPlayers = new ArrayList<>();
-                Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
-                customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
-                for (int i = 0; i < aiCount; i++) customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
-                Collections.shuffle(customPlayers);
-                setupGame(customPlayers);
-
-            } else if (choice == 1) {
-                int humanCount = getValidIntInput("Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", 2, MAX_PLAYERS);
-                if (humanCount == -1) { System.exit(0); return; }
-                List<Player> humans = new ArrayList<>();
-                Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
-                for (int i = 0; i < humanCount; i++) {
-                    String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1));
-                    if (name == null) name = "Pemain " + (i+1);
-                    humans.add(new Player(name, playerColors[i % playerColors.length], false));
-                }
-                Collections.shuffle(humans);
-                setupGame(humans);
-
-            } else {
-                initializePlayers(1, 1);
+            // Cek jika pengguna memilih Cancel (CLOSED_OPTION) atau menutup jendela
+            if (choice == JOptionPane.CLOSED_OPTION) {
+                // TIDAK KELUAR: Lanjutkan loop atau kembalikan ke awal (Loop while(true) akan efektif)
+                continue;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            promptForPlayers();
+
+            try {
+                if (choice == 0) {
+                    String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
+                    if (name == null) { continue; } // Handle Cancel pada input nama
+                    int maxAi = MAX_PLAYERS - 1;
+                    int aiCount = getValidIntInput("Masukkan jumlah AI (1.." + maxAi + "):", 1, maxAi);
+                    if (aiCount == -1) { continue; } // Handle Cancel pada input AI
+
+                    List<Player> customPlayers = new ArrayList<>();
+                    Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
+                    customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
+                    for (int i = 0; i < aiCount; i++) customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
+                    Collections.shuffle(customPlayers);
+                    setupGame(customPlayers);
+                    break; // Keluar dari loop setelah game di-setup
+
+                } else if (choice == 1) {
+                    int humanCount = getValidIntInput("Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", 2, MAX_PLAYERS);
+                    if (humanCount == -1) { continue; } // Handle Cancel pada input jumlah pemain
+                    List<Player> humans = new ArrayList<>();
+                    Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
+                    for (int i = 0; i < humanCount; i++) {
+                        String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1));
+                        if (name == null) name = "Pemain " + (i+1); // Jika Cancel, gunakan nama default
+                        humans.add(new Player(name, playerColors[i % playerColors.length], false));
+                    }
+                    Collections.shuffle(humans);
+                    setupGame(humans);
+                    break; // Keluar dari loop setelah game di-setup
+
+                } else {
+                    // Pilihan Custom (3)
+                    initializePlayers(1, 1); // Logika yang sudah ada
+                    break;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Jika terjadi Error (misalnya di getValidIntInput), ulang permintaan
+                continue;
+            }
         }
     }
 
