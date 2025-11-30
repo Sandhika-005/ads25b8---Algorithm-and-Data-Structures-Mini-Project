@@ -334,7 +334,7 @@ class GameEngine {
             if (board.hasScore(pos)) {
                 int gatheredScore = board.collectScore(pos);
                 acting.addScore(gatheredScore);
-                audioPlayer.playEffectImmediately("star");
+                audioPlayer.playEffectImmediately("score"); // Diubah dari "star" menjadi "score"
                 JOptionPane.showMessageDialog(mainApp,
                         acting.getName() + " mendapatkan " + gatheredScore + " Poin!",
                         "Score Get!", JOptionPane.INFORMATION_MESSAGE);

@@ -18,7 +18,8 @@ public class AudioPlayer {
             "gameOver", "audio/tamatlah-sudah.wav",
             "prime", "audio/cihuyy-wielino-ino_kO92s4H.wav",
             "star", "audio/ih-takotnyee.wav",
-            "connection", "audio/oh-my-god-bro-oh-hell-nah-man.wav"
+            "connection", "audio/oh-my-god-bro-oh-hell-nah-man.wav",
+            "score", "audio/Score - Sound Effect for editing [2cUbCkL75AM].wav"
     );
     // ----------------------------------------
 
