@@ -8,7 +8,7 @@ public class DijkstraPathFinder {
         Map<Integer, Integer> prev = new HashMap<>();
         runDijkstra(board, startNodeId, dist, prev);
 
-        // 2. Ambil jalur terpendek ke Target Utama (Finish / Node 64)
+        // 2. Ambil jalur terpendek ke Target Utama (Finish / Node N)
         List<Integer> fullPath = reconstructPath(prev, startNodeId, targetNodeId);
 
         // 3. Potong jalur sesuai jumlah dadu (maxSteps)
@@ -70,14 +70,13 @@ public class DijkstraPathFinder {
 
     /**
      * Menentukan tetangga (kemungkinan langkah).
-     * PERBAIKAN: Menambahkan pengecekan Tangga pada Node SAAT INI (nodeId)
+     * Langkah normal selalu nodeId + 1. Juga cek tangga.
      */
     private static List<Integer> getNeighbors(Board board, int nodeId) {
         List<Integer> neighbors = new ArrayList<>();
         int totalNodes = board.getTotalNodes();
 
         // 1. Cek apakah KITA SEDANG BERDIRI DI KAKI TANGGA?
-        // (Penting agar Dijkstra tahu kita bisa langsung naik tangga dari posisi sekarang)
         if (board.getConnections().containsKey(nodeId)) {
             int dest = board.getConnections().get(nodeId);
             // Pastikan ini Tangga (Naik)
@@ -92,7 +91,6 @@ public class DijkstraPathFinder {
             neighbors.add(nextNode);
 
             // 3. Cek apakah node di depan (nodeId + 1) adalah Kaki Tangga?
-            // (Kasus: Bypass/Passing Through - jalan ke depan lalu langsung naik)
             if (board.getConnections().containsKey(nextNode)) {
                 int dest = board.getConnections().get(nextNode);
                 if (dest > nextNode) {

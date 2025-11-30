@@ -337,7 +337,7 @@ class GameEngine {
             if (board.hasScore(pos)) {
                 int gatheredScore = board.collectScore(pos);
                 acting.addScore(gatheredScore);
-                audioPlayer.playEffectImmediately("score"); // Menggunakan sound "score"
+                audioPlayer.playEffectImmediately("score"); // Diperbaiki: Menggunakan sound "score"
                 JOptionPane.showMessageDialog(mainApp,
                         acting.getName() + " mendapatkan " + gatheredScore + " Poin!",
                         "Score Get!", JOptionPane.INFORMATION_MESSAGE);

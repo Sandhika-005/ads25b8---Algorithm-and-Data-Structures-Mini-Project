@@ -1,4 +1,6 @@
 import java.awt.Color;
+import java.awt.geom.Point2D; // Import yang diperlukan
+import java.awt.Point; // Import yang diperlukan
 import java.util.HashSet;
 import java.util.Set;
 
@@ -11,6 +13,9 @@ class Player {
     private int turnCount = 0;
     private boolean primePowerActive = false;
     private int score = 0;
+
+    // BARU: Variabel untuk animasi (koordinat sementara)
+    private Point2D animatedCoordinates = new Point(0, 0);
 
     // Set untuk mencatat tangga mana yang pernah dinaiki (Node Tujuan Tangga)
     private Set<Integer> climbedLadders = new HashSet<>();
@@ -34,6 +39,7 @@ class Player {
         this.primePowerActive = false;
         this.score = 0;
         this.climbedLadders.clear();
+        this.animatedCoordinates = new Point(0, 0); // Reset animasi
     }
 
     public void addClimbedLadder(int ladderEndNodeId) {
@@ -58,6 +64,10 @@ class Player {
     public int getCurrentPosition() { return currentPosition; }
     public void setCurrentPosition(int currentPosition) { this.currentPosition = currentPosition; }
     public Color getColor() { return color; }
+
+    // BARU: Getter/Setter untuk animasi
+    public Point2D getAnimatedCoordinates() { return animatedCoordinates; }
+    public void setAnimatedCoordinates(Point2D coords) { this.animatedCoordinates = coords; }
 
     @Override
     public String toString() {
