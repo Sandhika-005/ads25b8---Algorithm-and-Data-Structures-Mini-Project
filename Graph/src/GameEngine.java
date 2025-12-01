@@ -43,7 +43,8 @@ class GameEngine {
 
     public void promptForPlayers() {
         while (true) {
-            String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)", "Custom (Choose counts)"};
+            // MODIFIKASI: Menghilangkan opsi "Custom (Choose counts)"
+            String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)"};
             int choice = JOptionPane.showOptionDialog(mainApp, "Pilih mode permainan:", "Pilih Mode",
                     JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, modes, modes[0]);
 
@@ -54,7 +55,7 @@ class GameEngine {
             }
 
             try {
-                if (choice == 0) {
+                if (choice == 0) { // Play vs AI (Index 0)
                     String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
                     if (name == null) { continue; } // Handle Cancel pada input nama
                     int maxAi = MAX_PLAYERS - 1;
@@ -69,7 +70,7 @@ class GameEngine {
                     setupGame(customPlayers);
                     break; // Keluar dari loop setelah game di-setup
 
-                } else if (choice == 1) {
+                } else if (choice == 1) { // Player vs Player (Index 1)
                     int humanCount = getValidIntInput("Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", 2, MAX_PLAYERS);
                     if (humanCount == -1) { continue; } // Handle Cancel pada input jumlah pemain
                     List<Player> humans = new ArrayList<>();
@@ -83,11 +84,8 @@ class GameEngine {
                     setupGame(humans);
                     break; // Keluar dari loop setelah game di-setup
 
-                } else {
-                    // Pilihan Custom (3)
-                    initializePlayers(1, 1); // Logika yang sudah ada
-                    break;
                 }
+                // Logika untuk Custom (Choose counts) telah dihapus.
             } catch (Exception e) {
                 e.printStackTrace();
                 // Jika terjadi Error (misalnya di getValidIntInput), ulang permintaan

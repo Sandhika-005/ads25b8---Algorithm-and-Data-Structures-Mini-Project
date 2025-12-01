@@ -292,6 +292,9 @@ class BoardPanel extends JPanel {
         g2d.drawPolygon(star);
     }
 
+    /**
+     * DIKEMBALIKAN: Menggambar koneksi sebagai struktur tangga dengan rel samping dan anak tangga.
+     */
     private void drawConnectionsVisuals(Graphics2D g2d) {
         Map<Integer, Integer> connections = board.getConnections();
         double ladderWidth = 20.0;
@@ -314,11 +317,13 @@ class BoardPanel extends JPanel {
 
             Color mainColor, rungColor;
             if (endId > startId) {
-                mainColor = new Color(34, 139, 34, 220);
-                rungColor = new Color(139, 69, 19, 220);
+                // Tangga (Naik)
+                mainColor = new Color(34, 139, 34, 220); // Hijau untuk tangga naik
+                rungColor = new Color(139, 69, 19, 220); // Coklat untuk anak tangga
             } else {
-                mainColor = new Color(220, 20, 60, 220);
-                rungColor = new Color(255, 99, 71, 220);
+                // Ular (Turun) - Meskipun logika di GameEngine sudah dihapus, visual tetap ada
+                mainColor = new Color(220, 20, 60, 220); // Merah untuk ular/turun
+                rungColor = new Color(255, 99, 71, 220); // Merah muda untuk anak tangga
             }
 
             double dx = x2 - x1;
@@ -334,11 +339,13 @@ class BoardPanel extends JPanel {
             double offsetX = perpX * (ladderWidth / 2.0);
             double offsetY = perpY * (ladderWidth / 2.0);
 
+            // 1. Gambar dua rel samping
             g2d.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g2d.setColor(mainColor);
             g2d.draw(new Line2D.Double(x1 - offsetX, y1 - offsetY, x2 - offsetX, y2 - offsetY));
             g2d.draw(new Line2D.Double(x1 + offsetX, y1 + offsetY, x2 + offsetX, y2 + offsetY));
 
+            // 2. Gambar anak tangga
             g2d.setStroke(new BasicStroke(2f));
             g2d.setColor(rungColor);
             for (double d = rungSpacing; d < length - rungSpacing/2; d += rungSpacing) {
