@@ -30,12 +30,16 @@ public class WeightedMaze extends Maze {
     public void generateWeightedTerrain() {
         if (isGenerating || isSolving) return;
         useTerrainMode = true;
+
+        // 1. Generate Struktur Dasar (Perfect Maze)
         super.generatePrim();
-        if (statsCallback != null) statsCallback.accept("Generating Terrain...");
 
         new Thread(() -> {
-            try { Thread.sleep(200); } catch(Exception e){}
+            try { Thread.sleep(200); } catch(Exception e){} // Tunggu Prim selesai visualisasi kasar
+
             Random rand = new Random();
+
+            // 2. Assign Weights (Terrain)
             for (int r = 0; r < ROWS; r++) {
                 for (int c = 0; c < COLS; c++) {
                     double p = rand.nextDouble();
@@ -47,9 +51,44 @@ public class WeightedMaze extends Maze {
             terrainGrid[0][0] = COST_GRASS;
             terrainGrid[ROWS-1][COLS-1] = COST_GRASS;
 
-            if (statsCallback != null) statsCallback.accept("Terrain Generated.\n\nLegend:\n1 = Grass (Green)\n5 = Mud (Brown)\n10 = Water (Blue)");
+            // 3. [PENTING] Tambahkan Loops agar ada banyak jalur alternatif!
+            // Kita acak menghapus dinding tambahan sebanyak 10% dari total sel
+            addLoops(rand, (ROWS * COLS) / 10);
+
+            if (statsCallback != null) statsCallback.accept("Terrain Generated with Loops.\nMultiple paths available for comparison.");
             repaint();
         }).start();
+    }
+
+    // Method Baru: Menghapus dinding secara acak untuk membuat jalur alternatif
+    private void addLoops(Random rand, int count) {
+        int removed = 0;
+        while (removed < count) {
+            int r = rand.nextInt(ROWS - 2) + 1; // Hindari pinggir
+            int c = rand.nextInt(COLS - 2) + 1;
+
+            Cell cell = grid[r][c];
+            // Pilih dinding acak untuk dihapus (0=Top, 1=Right, 2=Bottom, 3=Left)
+            int wallIdx = rand.nextInt(4);
+
+            // Cek apakah dinding itu masih ada
+            if (cell.walls[wallIdx]) {
+                // Tentukan tetangga di seberang dinding
+                int nr = r, nc = c;
+                if (wallIdx == 0) nr--;
+                else if (wallIdx == 1) nc++;
+                else if (wallIdx == 2) nr++;
+                else if (wallIdx == 3) nc--;
+
+                // Pastikan koordinat tetangga valid
+                if (isValid(nr, nc)) {
+                    Cell neighbor = grid[nr][nc];
+                    // Hapus dinding di kedua sisi (cell & neighbor)
+                    removeWalls(cell, neighbor);
+                    removed++;
+                }
+            }
+        }
     }
 
     public void solveWeighted(boolean useAStar) {
@@ -83,6 +122,11 @@ public class WeightedMaze extends Maze {
                     break;
                 }
 
+                // Optimization: Skip jika kita sudah menemukan rute lebih baik ke node ini
+                if (currData[0] > (useAStar ? (dist.get(current) + heuristic(current, endCell)) : dist.get(current))) {
+                    // continue;
+                }
+
                 if (!current.searchVisited) {
                     current.searchVisited = true;
                     visitedNodesCount++;
@@ -111,7 +155,6 @@ public class WeightedMaze extends Maze {
                 int finalCost = dist.get(endCell);
                 int finalVisitedNodes = visitedNodesCount;
 
-                // Update Statistik ke Panel Samping
                 String result = String.format("""
                     Algorithm: %s
                     ----------------
@@ -119,6 +162,7 @@ public class WeightedMaze extends Maze {
                     Total Cost: %d
                     Nodes Visited: %d
                     Efficiency: %.2f%%
+                    (Map has Loops)
                     """, algoName, finalCost, finalVisitedNodes, ((double)finalVisitedNodes/(ROWS*COLS))*100);
 
                 if (statsCallback != null) statsCallback.accept(result);
@@ -156,7 +200,6 @@ public class WeightedMaze extends Maze {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Font untuk angka bobot
         g2.setFont(new Font("SansSerif", Font.BOLD, Math.max(10, cellSize / 2)));
         FontMetrics fm = g2.getFontMetrics();
 
@@ -164,22 +207,20 @@ public class WeightedMaze extends Maze {
             for (int c = 0; c < COLS; c++) {
                 int w = terrainGrid[r][c];
 
-                // Gambar Kotak Terrain
                 if (w == COST_MUD) g2.setColor(C_MUD);
                 else if (w == COST_WATER) g2.setColor(C_WATER);
                 else g2.setColor(C_GRASS);
                 g2.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
 
-                // VISUALISASI ANGKA BOBOT DI TENGAH CELL
-                if (cellSize > 15) { // Hanya gambar jika cell cukup besar
-                    g2.setColor(new Color(255, 255, 255, 180)); // Putih transparan
+                // Gambar Angka Bobot
+                if (cellSize > 15) {
+                    g2.setColor(new Color(255, 255, 255, 180));
                     String text = String.valueOf(w);
                     int textX = startX + c * cellSize + (cellSize - fm.stringWidth(text)) / 2;
                     int textY = startY + r * cellSize + ((cellSize - fm.getHeight()) / 2) + fm.getAscent();
                     g2.drawString(text, textX, textY);
                 }
 
-                // Scan Overlay
                 if (grid[r][c].searchVisited) {
                     g2.setColor(new Color(255, 255, 255, 100));
                     g2.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
