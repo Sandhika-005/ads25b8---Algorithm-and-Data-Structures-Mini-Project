@@ -6,33 +6,35 @@ import java.util.List;
 public class Maze extends JPanel {
 
     // --- Konfigurasi Tampilan & Kecepatan ---
-    private final int CELL_SIZE = 20;
-    private final int COLS = 50;
-    private final int ROWS = 35;
+    // Diubah ke PROTECTED agar bisa diakses subclass
+    protected final int CELL_SIZE = 20;
+    protected final int COLS = 50;
+    protected final int ROWS = 35;
 
     // Kecepatan Animasi
-    private final int SOLVE_DELAY = 15; // Kecepatan scan (biru)
-    private final int PATH_DELAY = 30;  // Kecepatan animasi garis solusi (kuning)
-    private final int GEN_BATCH = 20;   // Percepatan generate maze (biar tidak lama)
+    protected final int SOLVE_DELAY = 15;
+    protected final int PATH_DELAY = 30;
+    protected final int GEN_BATCH = 20;
 
     // Warna (Tema Dark Mode)
-    private final Color COLOR_BG = Color.BLACK;
-    private final Color COLOR_WALL = Color.WHITE;
-    private final Color COLOR_START = new Color(0, 255, 0);      // Hijau (Start)
-    private final Color COLOR_END = new Color(255, 0, 0);        // Merah (Finish)
-    private final Color COLOR_SOLUTION = new Color(255, 255, 0); // Kuning Neon (Jalur)
-    private final Color COLOR_SEARCH_BODY = new Color(0, 255, 255, 40); // Cyan Transparan (Scan)
-    private final Color COLOR_SEARCH_HEAD = new Color(0, 255, 255);     // Cyan (Kepala Scan)
+    protected final Color COLOR_BG = Color.BLACK;
+    protected final Color COLOR_WALL = Color.WHITE;
+    protected final Color COLOR_START = new Color(0, 255, 0);      // Hijau
+    protected final Color COLOR_END = new Color(255, 0, 0);        // Merah
+    protected final Color COLOR_SOLUTION = new Color(255, 255, 0); // Kuning
+    protected final Color COLOR_SEARCH_BODY = new Color(0, 255, 255, 40);
+    protected final Color COLOR_SEARCH_HEAD = new Color(0, 255, 255);
 
     // --- Struktur Data ---
-    private Cell[][] grid;
-    private Cell startCell, endCell;
-    private Cell currentSearchCell;
-    private List<Cell> finalPath;
+    // Diubah ke PROTECTED
+    protected Cell[][] grid;
+    protected Cell startCell, endCell;
+    protected Cell currentSearchCell;
+    protected List<Cell> finalPath;
 
     // --- State ---
-    private boolean isGenerating = false;
-    private boolean isSolving = false;
+    protected boolean isGenerating = false;
+    protected boolean isSolving = false;
 
     // Constructor
     public Maze() {
@@ -44,13 +46,13 @@ public class Maze extends JPanel {
     // =========================================
     // 1. Struktur Data Cell
     // =========================================
-    private class Cell {
+    // Diubah ke PROTECTED
+    protected class Cell {
         int r, c;
-        // [Top, Right, Bottom, Left] -> True = Ada Dinding
-        boolean[] walls = {true, true, true, true};
-        boolean visited = false;       // Untuk Prim (Generate)
-        boolean searchVisited = false; // Untuk Solver (BFS/DFS)
-        Cell parent = null;            // Untuk backtracking jalur
+        boolean[] walls = {true, true, true, true}; // [Top, Right, Bottom, Left]
+        boolean visited = false;
+        boolean searchVisited = false;
+        Cell parent = null;
 
         public Cell(int r, int c) {
             this.r = r;
@@ -58,7 +60,8 @@ public class Maze extends JPanel {
         }
     }
 
-    private void setupGrid() {
+    // Diubah ke PROTECTED
+    protected void setupGrid() {
         grid = new Cell[ROWS][COLS];
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
@@ -100,15 +103,13 @@ public class Maze extends JPanel {
                     current.visited = true;
                     addFrontier(current, frontier);
 
-                    // Optimasi agar generate tidak terlalu lambat
                     loopCount++;
                     if (loopCount % GEN_BATCH == 0) {
                         visualize(1);
                     }
                 }
             }
-
-            // Buka dinding di start dan end agar terlihat seperti pintu
+            // Buka pintu start/end
             grid[0][0].walls[3] = false;
             grid[ROWS-1][COLS-1].walls[1] = false;
 
@@ -117,7 +118,8 @@ public class Maze extends JPanel {
         }).start();
     }
 
-    private void addFrontier(Cell cell, ArrayList<Cell> frontier) {
+    // Diubah ke PROTECTED
+    protected void addFrontier(Cell cell, ArrayList<Cell> frontier) {
         int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
         for(int[] d : dirs) {
             int nr = cell.r + d[0];
@@ -129,7 +131,7 @@ public class Maze extends JPanel {
     }
 
     // =========================================
-    // 3. Solver (BFS & DFS) dengan Animasi
+    // 3. Solver (BFS & DFS)
     // =========================================
     public void solve(boolean useBFS) {
         if (isGenerating || isSolving) return;
@@ -145,7 +147,6 @@ public class Maze extends JPanel {
             startCell.searchVisited = true;
             boolean found = false;
 
-            // --- FASE 1: Scanning (Area Biru) ---
             while (!structure.isEmpty()) {
                 Cell current;
                 if (useBFS) current = ((Queue<Cell>)structure).poll();
@@ -167,25 +168,22 @@ public class Maze extends JPanel {
                         else ((Stack<Cell>)structure).push(next);
                     }
                 }
-                visualize(SOLVE_DELAY); // Animasi scanning
+                visualize(SOLVE_DELAY);
             }
 
-            // --- FASE 2: Animasi Jalur Solusi (Garis Kuning) ---
             if (found) {
-                // Rekonstruksi jalur dari End ke Start
+                // Backtracking jalur
                 List<Cell> completeRoute = new ArrayList<>();
                 Cell temp = endCell;
                 while (temp != null) {
                     completeRoute.add(temp);
                     temp = temp.parent;
                 }
-                // Balik urutan jadi Start ke End
                 Collections.reverse(completeRoute);
 
-                currentSearchCell = null; // Hilangkan kotak biru "kepala"
-                visualize(100); // Jeda sejenak sebelum garis kuning muncul
+                currentSearchCell = null;
+                visualize(100);
 
-                // Gambar garis kuning langkah demi langkah
                 for (Cell step : completeRoute) {
                     finalPath.add(step);
                     visualize(PATH_DELAY);
@@ -199,9 +197,9 @@ public class Maze extends JPanel {
     }
 
     // =========================================
-    // Helper Methods
+    // Helper Methods (PROTECTED)
     // =========================================
-    private void removeWalls(Cell a, Cell b) {
+    protected void removeWalls(Cell a, Cell b) {
         int dr = a.r - b.r;
         int dc = a.c - b.c;
         if (dr == 1) { a.walls[0] = false; b.walls[2] = false; }
@@ -210,7 +208,7 @@ public class Maze extends JPanel {
         if (dc == -1){ a.walls[1] = false; b.walls[3] = false; }
     }
 
-    private List<Cell> getNeighbors(Cell c, boolean onlyVisited) {
+    protected List<Cell> getNeighbors(Cell c, boolean onlyVisited) {
         List<Cell> list = new ArrayList<>();
         int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
         for (int[] d : dirs) {
@@ -220,7 +218,7 @@ public class Maze extends JPanel {
         return list;
     }
 
-    private List<Cell> getConnectedNeighbors(Cell c) {
+    protected List<Cell> getConnectedNeighbors(Cell c) {
         List<Cell> list = new ArrayList<>();
         if (!c.walls[0] && isValid(c.r - 1, c.c)) list.add(grid[c.r - 1][c.c]);
         if (!c.walls[1] && isValid(c.r, c.c + 1)) list.add(grid[c.r][c.c + 1]);
@@ -229,9 +227,9 @@ public class Maze extends JPanel {
         return list;
     }
 
-    private boolean isValid(int r, int c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+    protected boolean isValid(int r, int c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
 
-    private void resetSolver() {
+    protected void resetSolver() {
         finalPath.clear();
         for(int r=0; r<ROWS; r++) {
             for(int c=0; c<COLS; c++) {
@@ -242,20 +240,23 @@ public class Maze extends JPanel {
         repaint();
     }
 
-    private void visualize(int delay) {
+    protected void visualize(int delay) {
         try { SwingUtilities.invokeLater(this::repaint); if (delay > 0) Thread.sleep(delay); } catch (Exception e) {}
     }
 
-    // =========================================
-    // Menggambar (Rendering)
-    // =========================================
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 1. Gambar START dan END (Kotak Hijau & Merah)
+        // Subclass akan meng-override bagian ini jika ingin custom terrain
+        // Tapi kita sediakan method draw default agar bisa dipanggil subclass
+        drawMazeElements(g2);
+    }
+
+    protected void drawMazeElements(Graphics2D g2) {
+        // 1. Gambar START dan END
         if (startCell != null) {
             g2.setColor(COLOR_START);
             g2.fillRect(startCell.c * CELL_SIZE + 4, startCell.r * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
@@ -265,8 +266,8 @@ public class Maze extends JPanel {
             g2.fillRect(endCell.c * CELL_SIZE + 4, endCell.r * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
         }
 
-        // 2. Gambar Scanning Area (Biru Transparan)
-        if (isSolving) {
+        // 2. Gambar Scanning Area (Original)
+        if (isSolving && !(this instanceof WeightedMaze)) { // Cek agar tidak tumpang tindih dgn weighted
             g2.setColor(COLOR_SEARCH_BODY);
             for (int r = 0; r < ROWS; r++) {
                 for (int c = 0; c < COLS; c++) {
@@ -275,14 +276,13 @@ public class Maze extends JPanel {
                     }
                 }
             }
-            // Kepala pencari (kotak terang)
             if (currentSearchCell != null) {
                 g2.setColor(COLOR_SEARCH_HEAD);
                 g2.fillRect(currentSearchCell.c * CELL_SIZE + 5, currentSearchCell.r * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
             }
         }
 
-        // 3. Gambar Dinding (Garis Putih)
+        // 3. Gambar Dinding
         g2.setColor(COLOR_WALL);
         g2.setStroke(new BasicStroke(2));
         for (int r = 0; r < ROWS; r++) {
@@ -296,7 +296,7 @@ public class Maze extends JPanel {
             }
         }
 
-        // 4. Gambar Jalur Solusi (Garis Kuning) - Layer Paling Atas
+        // 4. Gambar Jalur Solusi
         if (!finalPath.isEmpty()) {
             g2.setColor(COLOR_SOLUTION);
             g2.setStroke(new BasicStroke(3));
@@ -309,43 +309,5 @@ public class Maze extends JPanel {
                 );
             }
         }
-    }
-
-    // =========================================
-    // Main Method
-    // =========================================
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
-
-            JFrame frame = new JFrame("Maze Generator & Solver");
-            Maze mazePanel = new Maze(); // Menggunakan class Maze
-
-            JPanel btnPanel = new JPanel();
-            btnPanel.setBackground(Color.DARK_GRAY);
-
-            JButton btnGen = new JButton("1. Generate");
-            JButton btnBFS = new JButton("2. Solve BFS");
-            JButton btnDFS = new JButton("3. Solve DFS");
-
-            Font btnFont = new Font("Arial", Font.BOLD, 12);
-            for(JButton b : new JButton[]{btnGen, btnBFS, btnDFS}) { b.setFont(btnFont); b.setFocusPainted(false); }
-
-            btnGen.addActionListener(e -> mazePanel.generatePrim());
-            btnBFS.addActionListener(e -> mazePanel.solve(true));
-            btnDFS.addActionListener(e -> mazePanel.solve(false));
-
-            btnPanel.add(btnGen); btnPanel.add(btnBFS); btnPanel.add(btnDFS);
-
-            frame.setLayout(new BorderLayout());
-            frame.add(mazePanel, BorderLayout.CENTER);
-            frame.add(btnPanel, BorderLayout.SOUTH);
-
-            frame.pack();
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setLocationRelativeTo(null);
-            frame.setResizable(false);
-            frame.setVisible(true);
-        });
     }
 }
