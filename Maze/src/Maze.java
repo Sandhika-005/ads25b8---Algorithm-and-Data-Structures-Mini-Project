@@ -5,51 +5,51 @@ import java.util.List;
 
 public class Maze extends JPanel {
 
-    // --- Konfigurasi Tampilan & Kecepatan ---
-    // Diubah ke PROTECTED agar bisa diakses subclass
-    protected final int CELL_SIZE = 20;
-    protected final int COLS = 50;
-    protected final int ROWS = 35;
+    // --- Konfigurasi Logika ---
+    protected final int COLS = 40;
+    protected final int ROWS = 30;
+
+    // Variabel Rendering
+    protected int cellSize;
+    protected int startX, startY;
+
+    // Variabel Kontrol Visualisasi (FIX BUG)
+    protected boolean drawScan = true;
 
     // Kecepatan Animasi
     protected final int SOLVE_DELAY = 15;
     protected final int PATH_DELAY = 30;
-    protected final int GEN_BATCH = 20;
+    protected final int GEN_BATCH = 10;
 
-    // Warna (Tema Dark Mode)
-    protected final Color COLOR_BG = Color.BLACK;
+    // Warna & Style
+    protected final Color COLOR_BG = new Color(30, 30, 30);
     protected final Color COLOR_WALL = Color.WHITE;
-    protected final Color COLOR_START = new Color(0, 255, 0);      // Hijau
-    protected final Color COLOR_END = new Color(255, 0, 0);        // Merah
-    protected final Color COLOR_SOLUTION = new Color(255, 255, 0); // Kuning
-    protected final Color COLOR_SEARCH_BODY = new Color(0, 255, 255, 40);
-    protected final Color COLOR_SEARCH_HEAD = new Color(0, 255, 255);
+    protected final Color COLOR_START = new Color(50, 205, 50);
+    protected final Color COLOR_END = new Color(220, 20, 60);
+    protected final Color COLOR_SOLUTION = new Color(255, 215, 0);
+
+    // Warna Animasi
+    protected final Color COLOR_SEARCH = new Color(0, 255, 255, 120);
+
+    protected final Stroke STROKE_WALL = new BasicStroke(3);
+    protected final Stroke STROKE_PATH = new BasicStroke(6);
 
     // --- Struktur Data ---
-    // Diubah ke PROTECTED
     protected Cell[][] grid;
     protected Cell startCell, endCell;
-    protected Cell currentSearchCell;
     protected List<Cell> finalPath;
 
-    // --- State ---
     protected boolean isGenerating = false;
     protected boolean isSolving = false;
 
-    // Constructor
     public Maze() {
-        setPreferredSize(new Dimension(COLS * CELL_SIZE + 1, ROWS * CELL_SIZE + 1));
         setBackground(COLOR_BG);
         setupGrid();
     }
 
-    // =========================================
-    // 1. Struktur Data Cell
-    // =========================================
-    // Diubah ke PROTECTED
     protected class Cell {
         int r, c;
-        boolean[] walls = {true, true, true, true}; // [Top, Right, Bottom, Left]
+        boolean[] walls = {true, true, true, true};
         boolean visited = false;
         boolean searchVisited = false;
         Cell parent = null;
@@ -60,7 +60,6 @@ public class Maze extends JPanel {
         }
     }
 
-    // Diubah ke PROTECTED
     protected void setupGrid() {
         grid = new Cell[ROWS][COLS];
         for (int r = 0; r < ROWS; r++) {
@@ -74,9 +73,6 @@ public class Maze extends JPanel {
         repaint();
     }
 
-    // =========================================
-    // 2. Generate Maze (Prim's Algorithm)
-    // =========================================
     public void generatePrim() {
         if (isGenerating || isSolving) return;
         setupGrid();
@@ -85,145 +81,96 @@ public class Maze extends JPanel {
         new Thread(() -> {
             ArrayList<Cell> frontier = new ArrayList<>();
             Random rand = new Random();
-
             startCell.visited = true;
             addFrontier(startCell, frontier);
 
-            int loopCount = 0;
-
+            int loop = 0;
             while (!frontier.isEmpty()) {
-                int index = rand.nextInt(frontier.size());
-                Cell current = frontier.remove(index);
-
-                List<Cell> visitedNeighbors = getNeighbors(current, true);
-
-                if (!visitedNeighbors.isEmpty()) {
-                    Cell neighbor = visitedNeighbors.get(rand.nextInt(visitedNeighbors.size()));
+                Cell current = frontier.remove(rand.nextInt(frontier.size()));
+                List<Cell> neighbors = getNeighbors(current, true);
+                if (!neighbors.isEmpty()) {
+                    Cell neighbor = neighbors.get(rand.nextInt(neighbors.size()));
                     removeWalls(current, neighbor);
                     current.visited = true;
                     addFrontier(current, frontier);
-
-                    loopCount++;
-                    if (loopCount % GEN_BATCH == 0) {
-                        visualize(1);
-                    }
+                    if(++loop % GEN_BATCH == 0) visualize(1);
                 }
             }
-            // Buka pintu start/end
             grid[0][0].walls[3] = false;
             grid[ROWS-1][COLS-1].walls[1] = false;
-
             isGenerating = false;
             repaint();
         }).start();
     }
 
-    // Diubah ke PROTECTED
-    protected void addFrontier(Cell cell, ArrayList<Cell> frontier) {
-        int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
-        for(int[] d : dirs) {
-            int nr = cell.r + d[0];
-            int nc = cell.c + d[1];
-            if(isValid(nr, nc) && !grid[nr][nc].visited && !frontier.contains(grid[nr][nc])) {
-                frontier.add(grid[nr][nc]);
-            }
-        }
-    }
-
-    // =========================================
-    // 3. Solver (BFS & DFS)
-    // =========================================
     public void solve(boolean useBFS) {
         if (isGenerating || isSolving) return;
         resetSolver();
         isSolving = true;
 
         new Thread(() -> {
-            Collection<Cell> structure = useBFS ? new LinkedList<>() : new Stack<>();
-
-            if (useBFS) ((Queue<Cell>)structure).add(startCell);
-            else ((Stack<Cell>)structure).push(startCell);
-
+            LinkedList<Cell> list = new LinkedList<>();
+            list.add(startCell);
             startCell.searchVisited = true;
             boolean found = false;
 
-            while (!structure.isEmpty()) {
-                Cell current;
-                if (useBFS) current = ((Queue<Cell>)structure).poll();
-                else current = ((Stack<Cell>)structure).pop();
-
-                currentSearchCell = current;
+            while (!list.isEmpty()) {
+                Cell current = useBFS ? list.poll() : list.removeLast();
 
                 if (current == endCell) {
                     found = true;
                     break;
                 }
 
-                List<Cell> neighbors = getConnectedNeighbors(current);
-                for (Cell next : neighbors) {
+                for (Cell next : getConnectedNeighbors(current)) {
                     if (!next.searchVisited) {
                         next.searchVisited = true;
                         next.parent = current;
-                        if (useBFS) ((Queue<Cell>)structure).add(next);
-                        else ((Stack<Cell>)structure).push(next);
+                        list.add(next);
                     }
                 }
                 visualize(SOLVE_DELAY);
             }
 
-            if (found) {
-                // Backtracking jalur
-                List<Cell> completeRoute = new ArrayList<>();
-                Cell temp = endCell;
-                while (temp != null) {
-                    completeRoute.add(temp);
-                    temp = temp.parent;
-                }
-                Collections.reverse(completeRoute);
-
-                currentSearchCell = null;
-                visualize(100);
-
-                for (Cell step : completeRoute) {
-                    finalPath.add(step);
-                    visualize(PATH_DELAY);
-                }
-            }
-
-            currentSearchCell = null;
+            if (found) reconstructPath(endCell);
             isSolving = false;
             repaint();
         }).start();
     }
 
-    // =========================================
-    // Helper Methods (PROTECTED)
-    // =========================================
+    protected void addFrontier(Cell cell, ArrayList<Cell> frontier) {
+        int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+        for(int[] d : dirs) {
+            int nr = cell.r + d[0], nc = cell.c + d[1];
+            if(isValid(nr, nc) && !grid[nr][nc].visited && !frontier.contains(grid[nr][nc]))
+                frontier.add(grid[nr][nc]);
+        }
+    }
+
     protected void removeWalls(Cell a, Cell b) {
-        int dr = a.r - b.r;
-        int dc = a.c - b.c;
+        int dr = a.r - b.r, dc = a.c - b.c;
         if (dr == 1) { a.walls[0] = false; b.walls[2] = false; }
         if (dr == -1){ a.walls[2] = false; b.walls[0] = false; }
         if (dc == 1) { a.walls[3] = false; b.walls[1] = false; }
         if (dc == -1){ a.walls[1] = false; b.walls[3] = false; }
     }
 
-    protected List<Cell> getNeighbors(Cell c, boolean onlyVisited) {
+    protected List<Cell> getNeighbors(Cell c, boolean visitedState) {
         List<Cell> list = new ArrayList<>();
-        int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-        for (int[] d : dirs) {
-            int nr = c.r + d[0], nc = c.c + d[1];
-            if (isValid(nr, nc) && grid[nr][nc].visited == onlyVisited) list.add(grid[nr][nc]);
+        int[][] dirs = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+        for(int[] d : dirs) {
+            int nr = c.r+d[0], nc = c.c+d[1];
+            if(isValid(nr, nc) && grid[nr][nc].visited == visitedState) list.add(grid[nr][nc]);
         }
         return list;
     }
 
     protected List<Cell> getConnectedNeighbors(Cell c) {
         List<Cell> list = new ArrayList<>();
-        if (!c.walls[0] && isValid(c.r - 1, c.c)) list.add(grid[c.r - 1][c.c]);
-        if (!c.walls[1] && isValid(c.r, c.c + 1)) list.add(grid[c.r][c.c + 1]);
-        if (!c.walls[2] && isValid(c.r + 1, c.c)) list.add(grid[c.r + 1][c.c]);
-        if (!c.walls[3] && isValid(c.r, c.c - 1)) list.add(grid[c.r][c.c - 1]);
+        if (!c.walls[0] && isValid(c.r-1, c.c)) list.add(grid[c.r-1][c.c]);
+        if (!c.walls[1] && isValid(c.r, c.c+1)) list.add(grid[c.r][c.c+1]);
+        if (!c.walls[2] && isValid(c.r+1, c.c)) list.add(grid[c.r+1][c.c]);
+        if (!c.walls[3] && isValid(c.r, c.c-1)) list.add(grid[c.r][c.c-1]);
         return list;
     }
 
@@ -240,73 +187,79 @@ public class Maze extends JPanel {
         repaint();
     }
 
+    protected void reconstructPath(Cell end) {
+        Cell temp = end;
+        while (temp != null) {
+            finalPath.add(temp);
+            temp = temp.parent;
+            visualize(PATH_DELAY);
+        }
+        Collections.reverse(finalPath);
+    }
+
     protected void visualize(int delay) {
-        try { SwingUtilities.invokeLater(this::repaint); if (delay > 0) Thread.sleep(delay); } catch (Exception e) {}
+        try { SwingUtilities.invokeLater(this::repaint); if(delay > 0) Thread.sleep(delay); } catch(Exception e){}
+    }
+
+    protected void calculateDimensions() {
+        int panelW = getWidth();
+        int panelH = getHeight();
+        int cellW = panelW / COLS;
+        int cellH = panelH / ROWS;
+        cellSize = Math.max(1, Math.min(cellW, cellH));
+        startX = (panelW - (COLS * cellSize)) / 2;
+        startY = (panelH - (ROWS * cellSize)) / 2;
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        calculateDimensions();
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        // Subclass akan meng-override bagian ini jika ingin custom terrain
-        // Tapi kita sediakan method draw default agar bisa dipanggil subclass
         drawMazeElements(g2);
     }
 
     protected void drawMazeElements(Graphics2D g2) {
-        // 1. Gambar START dan END
+        g2.setColor(COLOR_WALL);
+        g2.setStroke(STROKE_WALL);
+
+        for(int r=0; r<ROWS; r++) {
+            for(int c=0; c<COLS; c++) {
+                int x = startX + c * cellSize;
+                int y = startY + r * cellSize;
+
+                if(grid[r][c].walls[0]) g2.drawLine(x, y, x+cellSize, y);
+                if(grid[r][c].walls[1]) g2.drawLine(x+cellSize, y, x+cellSize, y+cellSize);
+                if(grid[r][c].walls[2]) g2.drawLine(x+cellSize, y+cellSize, x, y+cellSize);
+                if(grid[r][c].walls[3]) g2.drawLine(x, y+cellSize, x, y);
+
+                // FIX BUG: Gunakan flag drawScan, bukan instanceof
+                if(grid[r][c].searchVisited && drawScan) {
+                    g2.setColor(COLOR_SEARCH);
+                    g2.fillRect(x+2, y+2, cellSize-4, cellSize-4);
+                    g2.setColor(COLOR_WALL);
+                }
+            }
+        }
+
         if (startCell != null) {
             g2.setColor(COLOR_START);
-            g2.fillRect(startCell.c * CELL_SIZE + 4, startCell.r * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+            g2.fillRect(startX + startCell.c * cellSize + 5, startY + startCell.r * cellSize + 5, cellSize - 10, cellSize - 10);
         }
         if (endCell != null) {
             g2.setColor(COLOR_END);
-            g2.fillRect(endCell.c * CELL_SIZE + 4, endCell.r * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+            g2.fillRect(startX + endCell.c * cellSize + 5, startY + endCell.r * cellSize + 5, cellSize - 10, cellSize - 10);
         }
 
-        // 2. Gambar Scanning Area (Original)
-        if (isSolving && !(this instanceof WeightedMaze)) { // Cek agar tidak tumpang tindih dgn weighted
-            g2.setColor(COLOR_SEARCH_BODY);
-            for (int r = 0; r < ROWS; r++) {
-                for (int c = 0; c < COLS; c++) {
-                    if (grid[r][c].searchVisited) {
-                        g2.fillRect(c * CELL_SIZE + 2, r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-                    }
-                }
-            }
-            if (currentSearchCell != null) {
-                g2.setColor(COLOR_SEARCH_HEAD);
-                g2.fillRect(currentSearchCell.c * CELL_SIZE + 5, currentSearchCell.r * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
-            }
-        }
-
-        // 3. Gambar Dinding
-        g2.setColor(COLOR_WALL);
-        g2.setStroke(new BasicStroke(2));
-        for (int r = 0; r < ROWS; r++) {
-            for (int c = 0; c < COLS; c++) {
-                int x = c * CELL_SIZE;
-                int y = r * CELL_SIZE;
-                if (grid[r][c].walls[0]) g2.drawLine(x, y, x + CELL_SIZE, y);
-                if (grid[r][c].walls[1]) g2.drawLine(x + CELL_SIZE, y, x + CELL_SIZE, y + CELL_SIZE);
-                if (grid[r][c].walls[2]) g2.drawLine(x + CELL_SIZE, y + CELL_SIZE, x, y + CELL_SIZE);
-                if (grid[r][c].walls[3]) g2.drawLine(x, y + CELL_SIZE, x, y);
-            }
-        }
-
-        // 4. Gambar Jalur Solusi
         if (!finalPath.isEmpty()) {
             g2.setColor(COLOR_SOLUTION);
-            g2.setStroke(new BasicStroke(3));
+            g2.setStroke(STROKE_PATH);
             for (int i = 0; i < finalPath.size() - 1; i++) {
                 Cell a = finalPath.get(i);
                 Cell b = finalPath.get(i + 1);
-                g2.drawLine(
-                        a.c * CELL_SIZE + CELL_SIZE / 2, a.r * CELL_SIZE + CELL_SIZE / 2,
-                        b.c * CELL_SIZE + CELL_SIZE / 2, b.r * CELL_SIZE + CELL_SIZE / 2
-                );
+                g2.drawLine(startX + a.c*cellSize + cellSize/2, startY + a.r*cellSize + cellSize/2,
+                        startX + b.c*cellSize + cellSize/2, startY + b.r*cellSize + cellSize/2);
             }
         }
     }
