@@ -1,39 +1,59 @@
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 public class MazeApp {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // Hapus UIManager.setLookAndFeel agar warna tombol bekerja dengan benar
-
-            JFrame frame = new JFrame("All-in-One Maze Solver (Responsive)");
+            JFrame frame = new JFrame("All-in-One Maze Solver");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-            // Start Maximize (Fullscreen Windowed) dan BISA DI-RESIZE
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
             frame.setResizable(true);
 
             WeightedMaze mazePanel = new WeightedMaze();
 
-            // --- Panel Utama untuk Kontrol ---
+            // --- Panel Statistik (Kanan) ---
+            JPanel statsPanel = new JPanel(new BorderLayout());
+            statsPanel.setPreferredSize(new Dimension(250, 0));
+            statsPanel.setBackground(new Color(35, 35, 35));
+            statsPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+            JLabel lblTitle = new JLabel("Statistics");
+            lblTitle.setFont(new Font("SansSerif", Font.BOLD, 22));
+            lblTitle.setForeground(Color.WHITE);
+            lblTitle.setBorder(new EmptyBorder(0, 0, 15, 0));
+
+            JTextArea statsText = new JTextArea();
+            statsText.setEditable(false);
+            statsText.setFocusable(false);
+            statsText.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            statsText.setBackground(new Color(45, 45, 45));
+            statsText.setForeground(new Color(220, 220, 220));
+            statsText.setBorder(new EmptyBorder(10, 10, 10, 10));
+            statsText.setText("Ready.\nSelect generator...");
+
+            statsPanel.add(lblTitle, BorderLayout.NORTH);
+            statsPanel.add(statsText, BorderLayout.CENTER);
+
+            // Sambungkan Callback dari Maze ke Text Area ini
+            mazePanel.setStatsCallback(text -> {
+                SwingUtilities.invokeLater(() -> statsText.setText(text));
+            });
+
+            // --- Panel Kontrol (Bawah) ---
             JPanel controlPanel = new JPanel(new GridLayout(2, 1, 5, 5));
             controlPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
             controlPanel.setBackground(new Color(45, 45, 45));
 
-            // Panel Generator
             JPanel genPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
             genPanel.setOpaque(false);
-
             JButton btnStandard = createButton("1. Standard Maze", new Color(80, 80, 80));
-            JButton btnTerrain = createButton("2. Terrain Map", new Color(34, 139, 34));
-
+            JButton btnTerrain = createButton("2. Terrain Map (Weighted)", new Color(34, 139, 34));
             genPanel.add(btnStandard);
             genPanel.add(btnTerrain);
 
-            // Panel Solver
             JPanel solvePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
             solvePanel.setOpaque(false);
-
             JButton btnBFS = createButton("BFS", new Color(0, 100, 200));
             JButton btnDFS = createButton("DFS", new Color(128, 0, 128));
             JButton btnDijkstra = createButton("Dijkstra", new Color(200, 60, 0));
@@ -48,7 +68,7 @@ public class MazeApp {
             controlPanel.add(genPanel);
             controlPanel.add(solvePanel);
 
-            // --- Action Listeners ---
+            // Listeners
             btnStandard.addActionListener(e -> mazePanel.generatePrim());
             btnTerrain.addActionListener(e -> mazePanel.generateWeightedTerrain());
             btnBFS.addActionListener(e -> mazePanel.solve(true));
@@ -56,10 +76,10 @@ public class MazeApp {
             btnDijkstra.addActionListener(e -> mazePanel.solveWeighted(false));
             btnAStar.addActionListener(e -> mazePanel.solveWeighted(true));
 
-            // Layout Frame
+            // Layout Utama
             frame.setLayout(new BorderLayout());
-            // Maze diletakkan di CENTER tanpa wrapper agar mengisi seluruh area
             frame.add(mazePanel, BorderLayout.CENTER);
+            frame.add(statsPanel, BorderLayout.EAST); // Panel stats di kanan
             frame.add(controlPanel, BorderLayout.SOUTH);
 
             frame.setLocationRelativeTo(null);
@@ -72,14 +92,11 @@ public class MazeApp {
         btn.setFont(new Font("SansSerif", Font.BOLD, 14));
         btn.setBackground(bg);
         btn.setForeground(Color.WHITE);
-
-        // Trik agar warna background muncul di semua OS
         btn.setOpaque(true);
         btn.setContentAreaFilled(true);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
-
-        btn.setPreferredSize(new Dimension(170, 45));
+        btn.setPreferredSize(new Dimension(200, 45));
         return btn;
     }
 }

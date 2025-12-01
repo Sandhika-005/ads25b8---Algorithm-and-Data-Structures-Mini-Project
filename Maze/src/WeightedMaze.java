@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
@@ -30,6 +31,7 @@ public class WeightedMaze extends Maze {
         if (isGenerating || isSolving) return;
         useTerrainMode = true;
         super.generatePrim();
+        if (statsCallback != null) statsCallback.accept("Generating Terrain...");
 
         new Thread(() -> {
             try { Thread.sleep(200); } catch(Exception e){}
@@ -44,6 +46,8 @@ public class WeightedMaze extends Maze {
             }
             terrainGrid[0][0] = COST_GRASS;
             terrainGrid[ROWS-1][COLS-1] = COST_GRASS;
+
+            if (statsCallback != null) statsCallback.accept("Terrain Generated.\n\nLegend:\n1 = Grass (Green)\n5 = Mud (Brown)\n10 = Water (Blue)");
             repaint();
         }).start();
     }
@@ -53,6 +57,8 @@ public class WeightedMaze extends Maze {
 
         isSolving = true;
         resetSolver();
+        String algoName = useAStar ? "A* (A-Star)" : "Dijkstra";
+        if (statsCallback != null) statsCallback.accept("Running " + algoName + "...");
 
         new Thread(() -> {
             Map<Cell, Integer> dist = new HashMap<>();
@@ -66,26 +72,24 @@ public class WeightedMaze extends Maze {
             pq.add(new double[]{0, startCell.r, startCell.c});
 
             boolean found = false;
-            Set<Cell> visited = new HashSet<>();
+            int visitedNodesCount = 0;
 
             while (!pq.isEmpty()) {
                 double[] currData = pq.poll();
                 Cell current = grid[(int)currData[1]][(int)currData[2]];
-
-                if (visited.contains(current)) continue;
-                visited.add(current);
-                current.searchVisited = true;
-
-                if (visited.size() % 5 == 0) visualize(1);
 
                 if (current == endCell) {
                     found = true;
                     break;
                 }
 
-                for (Cell neighbor : getConnectedNeighbors(current)) {
-                    if (visited.contains(neighbor)) continue;
+                if (!current.searchVisited) {
+                    current.searchVisited = true;
+                    visitedNodesCount++;
+                    if (visitedNodesCount % 5 == 0) visualize(1);
+                }
 
+                for (Cell neighbor : getConnectedNeighbors(current)) {
                     int cost = useTerrainMode ? terrainGrid[neighbor.r][neighbor.c] : 1;
                     int newDist = dist.get(current) + cost;
 
@@ -94,17 +98,38 @@ public class WeightedMaze extends Maze {
                         parent.put(neighbor, current);
 
                         double priority = newDist;
-                        if(useAStar) priority += (Math.abs(neighbor.r - endCell.r) + Math.abs(neighbor.c - endCell.c));
+                        if(useAStar) priority += heuristic(neighbor, endCell);
 
                         pq.add(new double[]{priority, neighbor.r, neighbor.c});
                     }
                 }
             }
 
-            if (found) reconstructPath(parent.get(endCell), parent);
+            if (found) {
+                reconstructPath(parent.get(endCell), parent);
+
+                int finalCost = dist.get(endCell);
+                int finalVisitedNodes = visitedNodesCount;
+
+                // Update Statistik ke Panel Samping
+                String result = String.format("""
+                    Algorithm: %s
+                    ----------------
+                    Status: Finished
+                    Total Cost: %d
+                    Nodes Visited: %d
+                    Efficiency: %.2f%%
+                    """, algoName, finalCost, finalVisitedNodes, ((double)finalVisitedNodes/(ROWS*COLS))*100);
+
+                if (statsCallback != null) statsCallback.accept(result);
+            }
             isSolving = false;
             repaint();
         }).start();
+    }
+
+    private double heuristic(Cell a, Cell b) {
+        return (Math.abs(a.r - b.r) + Math.abs(a.c - b.c));
     }
 
     private void reconstructPath(Cell curr, Map<Cell, Cell> parent) {
@@ -118,34 +143,45 @@ public class WeightedMaze extends Maze {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.calculateDimensions(); // Hitung ukuran agar sinkron
+        super.calculateDimensions();
 
-        // Jika Standard Mode, aktifkan drawScan parent
         if (!useTerrainMode) {
             this.drawScan = true;
             super.paintComponent(g);
             return;
         }
 
-        // Jika Terrain Mode, matikan drawScan parent (kita gambar sendiri overlay-nya)
         this.drawScan = false;
 
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Gambar Terrain
+        // Font untuk angka bobot
+        g2.setFont(new Font("SansSerif", Font.BOLD, Math.max(10, cellSize / 2)));
+        FontMetrics fm = g2.getFontMetrics();
+
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
                 int w = terrainGrid[r][c];
+
+                // Gambar Kotak Terrain
                 if (w == COST_MUD) g2.setColor(C_MUD);
                 else if (w == COST_WATER) g2.setColor(C_WATER);
                 else g2.setColor(C_GRASS);
-
                 g2.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
 
-                // Custom Scan Overlay untuk Terrain
+                // VISUALISASI ANGKA BOBOT DI TENGAH CELL
+                if (cellSize > 15) { // Hanya gambar jika cell cukup besar
+                    g2.setColor(new Color(255, 255, 255, 180)); // Putih transparan
+                    String text = String.valueOf(w);
+                    int textX = startX + c * cellSize + (cellSize - fm.stringWidth(text)) / 2;
+                    int textY = startY + r * cellSize + ((cellSize - fm.getHeight()) / 2) + fm.getAscent();
+                    g2.drawString(text, textX, textY);
+                }
+
+                // Scan Overlay
                 if (grid[r][c].searchVisited) {
-                    g2.setColor(new Color(255, 255, 255, 120));
+                    g2.setColor(new Color(255, 255, 255, 100));
                     g2.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
                 }
             }

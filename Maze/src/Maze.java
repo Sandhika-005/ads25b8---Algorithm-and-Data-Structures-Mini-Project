@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class Maze extends JPanel {
 
@@ -12,14 +13,15 @@ public class Maze extends JPanel {
     // Variabel Rendering
     protected int cellSize;
     protected int startX, startY;
-
-    // Variabel Kontrol Visualisasi (FIX BUG)
     protected boolean drawScan = true;
 
+    // Callback untuk update statistik ke UI
+    protected Consumer<String> statsCallback;
+
     // Kecepatan Animasi
-    protected final int SOLVE_DELAY = 15;
-    protected final int PATH_DELAY = 30;
-    protected final int GEN_BATCH = 10;
+    protected final int SOLVE_DELAY = 10;
+    protected final int PATH_DELAY = 25;
+    protected final int GEN_BATCH = 15;
 
     // Warna & Style
     protected final Color COLOR_BG = new Color(30, 30, 30);
@@ -27,8 +29,6 @@ public class Maze extends JPanel {
     protected final Color COLOR_START = new Color(50, 205, 50);
     protected final Color COLOR_END = new Color(220, 20, 60);
     protected final Color COLOR_SOLUTION = new Color(255, 215, 0);
-
-    // Warna Animasi
     protected final Color COLOR_SEARCH = new Color(0, 255, 255, 120);
 
     protected final Stroke STROKE_WALL = new BasicStroke(3);
@@ -45,6 +45,10 @@ public class Maze extends JPanel {
     public Maze() {
         setBackground(COLOR_BG);
         setupGrid();
+    }
+
+    public void setStatsCallback(Consumer<String> callback) {
+        this.statsCallback = callback;
     }
 
     protected class Cell {
@@ -77,6 +81,7 @@ public class Maze extends JPanel {
         if (isGenerating || isSolving) return;
         setupGrid();
         isGenerating = true;
+        if (statsCallback != null) statsCallback.accept("Generating Maze...");
 
         new Thread(() -> {
             ArrayList<Cell> frontier = new ArrayList<>();
@@ -99,6 +104,7 @@ public class Maze extends JPanel {
             grid[0][0].walls[3] = false;
             grid[ROWS-1][COLS-1].walls[1] = false;
             isGenerating = false;
+            if (statsCallback != null) statsCallback.accept("Maze Generated.\nReady to solve.");
             repaint();
         }).start();
     }
@@ -107,15 +113,19 @@ public class Maze extends JPanel {
         if (isGenerating || isSolving) return;
         resetSolver();
         isSolving = true;
+        String algoName = useBFS ? "BFS" : "DFS";
+        if (statsCallback != null) statsCallback.accept("Running " + algoName + "...");
 
         new Thread(() -> {
             LinkedList<Cell> list = new LinkedList<>();
             list.add(startCell);
             startCell.searchVisited = true;
             boolean found = false;
+            int nodesVisited = 0;
 
             while (!list.isEmpty()) {
                 Cell current = useBFS ? list.poll() : list.removeLast();
+                nodesVisited++;
 
                 if (current == endCell) {
                     found = true;
@@ -132,7 +142,22 @@ public class Maze extends JPanel {
                 visualize(SOLVE_DELAY);
             }
 
-            if (found) reconstructPath(endCell);
+            if (found) {
+                reconstructPath(endCell);
+                // Update Statistik ke Panel Samping (Bukan Popup)
+                String result = String.format("""
+                    Algorithm: %s
+                    ----------------
+                    Status: Finished
+                    Nodes Visited: %d
+                    Path Found: Yes
+                    (Unweighted)
+                    """, algoName, nodesVisited);
+
+                if (statsCallback != null) statsCallback.accept(result);
+            } else {
+                if (statsCallback != null) statsCallback.accept(algoName + " Failed to find path.");
+            }
             isSolving = false;
             repaint();
         }).start();
@@ -234,7 +259,6 @@ public class Maze extends JPanel {
                 if(grid[r][c].walls[2]) g2.drawLine(x+cellSize, y+cellSize, x, y+cellSize);
                 if(grid[r][c].walls[3]) g2.drawLine(x, y+cellSize, x, y);
 
-                // FIX BUG: Gunakan flag drawScan, bukan instanceof
                 if(grid[r][c].searchVisited && drawScan) {
                     g2.setColor(COLOR_SEARCH);
                     g2.fillRect(x+2, y+2, cellSize-4, cellSize-4);
