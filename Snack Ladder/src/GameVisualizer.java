@@ -7,7 +7,7 @@ public class GameVisualizer extends JFrame {
     private GameControlPanel controlPanel;
     private GameEngine gameEngine;
     private AudioPlayer audioPlayer;
-    private int currentNodeCount = 64; // DIJAGA TETAP 64
+    private int currentNodeCount = 64;
 
     private JPanel leaderboardPanel;
     private JLabel topScoresLabel;
@@ -32,12 +32,11 @@ public class GameVisualizer extends JFrame {
             }
         });
 
-        // setSize(BOARD_W + CONTROL_W + LEAD_W, BOARD_H + 50); -- Dihapus, menggunakan pack() di main
         setLocationRelativeTo(null);
 
         audioPlayer = new AudioPlayer();
 
-        initGameComponents(64); // Panggil langsung dengan 64
+        initGameComponents(64);
 
         showMainScreen();
         audioPlayer.playBackgroundMusic();
@@ -49,6 +48,7 @@ public class GameVisualizer extends JFrame {
         Board board = new Board(nodeCount);
 
         this.gameEngine = new GameEngine(board, this, audioPlayer);
+        // BoardPanel hanya menerima board dan gameEngine
         this.boardPanel = new BoardPanel(board, gameEngine);
         this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this, audioPlayer);
         this.gameEngine.setControlPanel(controlPanel);
@@ -59,18 +59,6 @@ public class GameVisualizer extends JFrame {
     public BoardPanel getBoardPanel() {
         return boardPanel;
     }
-
-    // START MODIFIKASI: updateBoardNodeCount DIHAPUS
-    /*
-    public void updateBoardNodeCount(int nodeCount) {
-        initGameComponents(nodeCount);
-        showMainScreen();
-        if (!audioPlayer.isMuted()) {
-            audioPlayer.playBackgroundMusic();
-        }
-    }
-    */
-    // AKHIR MODIFIKASI
 
     public void restartGame(List<Player> existingPlayers) {
         initGameComponents(this.currentNodeCount);
@@ -84,10 +72,8 @@ public class GameVisualizer extends JFrame {
     private void showMainScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        // --- KOREKSI: Setting background mainPanel untuk mencegah painting leak ---
-        // Warna gelap yang konsisten (sama seperti background ControlPanel)
+        // Setting background mainPanel
         mainPanel.setBackground(new Color(45, 60, 80));
-        // --- AKHIR KOREKSI ---
 
         mainPanel.add(boardPanel, BorderLayout.CENTER);
 

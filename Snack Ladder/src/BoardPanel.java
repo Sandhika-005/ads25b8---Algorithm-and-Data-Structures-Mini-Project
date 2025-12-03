@@ -8,6 +8,8 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import java.util.concurrent.ConcurrentHashMap;
+import java.awt.geom.Ellipse2D; // Untuk clipping melingkar
 
 class BoardPanel extends JPanel {
     private final Board board;
@@ -15,7 +17,7 @@ class BoardPanel extends JPanel {
 
     private BufferedImage backgroundImage;
     private final String BG_IMAGE_RESOURCE_PATH = "Gambar/Desain tanpa judul.jpg";
-    private final Color COLOR_BG = new Color(45, 60, 80); // Warna Dasar yang Seragam
+    private final Color COLOR_BG = new Color(45, 60, 80);
 
     private Player animatingPlayer = null;
     private double animX, animY;
@@ -26,6 +28,10 @@ class BoardPanel extends JPanel {
     private Runnable onAnimComplete;
     private Timer animTimer;
 
+    // Cache untuk menyimpan gambar bidak yang sudah dimuat
+    private Map<String, BufferedImage> tokenImageCache = new ConcurrentHashMap<>();
+
+    // ORIGINAL CONSTRUCTOR: Memuat gambar latar belakang bawaan
     public BoardPanel(Board board, GameEngine gameEngine) {
         this.board = board;
         this.gameEngine = gameEngine;
@@ -49,7 +55,28 @@ class BoardPanel extends JPanel {
         animTimer = new Timer(16, e -> updateAnimation());
     }
 
-    // ... (metode getCentroid, animatePlayerMovement, updateAnimation) ...
+    // Helper method untuk memuat dan melakukan caching gambar bidak
+    private BufferedImage loadTokenImage(String imagePath) {
+        if (imagePath == null || imagePath.isEmpty()) return null;
+
+        if (tokenImageCache.containsKey(imagePath)) {
+            return tokenImageCache.get(imagePath);
+        }
+
+        // Gunakan getResourceAsStream() untuk memuat dari resource path
+        try (InputStream is = BoardPanel.class.getResourceAsStream(imagePath)) {
+            if (is != null) {
+                BufferedImage image = ImageIO.read(is);
+                tokenImageCache.put(imagePath, image);
+                return image;
+            } else {
+                return null;
+            }
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
 
     private Point getCentroid(BoardNode node) {
         int size = BoardNode.SIZE;
@@ -113,13 +140,11 @@ class BoardPanel extends JPanel {
         int panelW = getWidth();
         int panelH = getHeight();
 
-        // --- MODIFIKASI: 1. Bersihkan seluruh area panel dengan warna seragam ---
-        // Ini memastikan tidak ada kebocoran warna dari panel lain yang terlihat.
+        // --- MENGGAMBAR BACKGROUND DENGAN WARNA SERAGAM ---
         g2d.setColor(COLOR_BG);
         g2d.fillRect(0, 0, panelW, panelH);
-        // --- AKHIR MODIFIKASI 1 ---
 
-        // --- 2. MENGGAMBAR BACKGROUND DENGAN LOGIKA CONTAIN (Scale to Fit) ---
+        // --- MENGGAMBAR BACKGROUND DENGAN GAMBAR (CONTAIN LOGIC) ---
         if (backgroundImage != null) {
             int imageW = backgroundImage.getWidth();
             int imageH = backgroundImage.getHeight();
@@ -158,8 +183,6 @@ class BoardPanel extends JPanel {
 
         g2d.dispose();
     }
-
-    // ... (rest of the drawing methods remain the same) ...
 
     private void drawNodes(Graphics2D g2d) {
         int size = BoardNode.SIZE;
@@ -286,8 +309,9 @@ class BoardPanel extends JPanel {
         }
     }
 
+    // MODIFIED: Menggambar pemain menggunakan gambar dan clipping melingkar
     private void drawPlayers(Graphics2D g2d) {
-        int playerSize = 18;
+        int playerSize = 25;
         List<BoardNode> allNodes = new ArrayList<>(board.getNodes());
         if (board.getOutsideNode() != null) allNodes.add(board.getOutsideNode());
 
@@ -334,11 +358,38 @@ class BoardPanel extends JPanel {
                     drawY = py - playerSize / 2;
                 }
 
-                g2d.setColor(player.getColor());
-                g2d.fillOval(drawX, drawY, playerSize, playerSize);
-                g2d.setColor(Color.WHITE);
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawOval(drawX, drawY, playerSize, playerSize);
+                // --- NEW DRAWING LOGIC: Draw Image Token with Circular Clipping ---
+                BufferedImage tokenImage = loadTokenImage(player.getTokenImagePath());
+
+                if (tokenImage != null) {
+                    // 1. Simpan clip lama
+                    Shape originalClip = g2d.getClip();
+
+                    // 2. Buat dan terapkan clip melingkar
+                    g2d.clip(new Ellipse2D.Double(drawX, drawY, playerSize, playerSize));
+
+                    // 3. Gambar gambar (akan terpotong menjadi lingkaran)
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g2d.drawImage(tokenImage, drawX, drawY, playerSize, playerSize, this);
+
+                    // 4. Kembalikan clip ke bentuk semula (PENTING)
+                    g2d.setClip(originalClip);
+
+                    // 5. Tambahkan border melingkar menggunakan warna pemain
+                    g2d.setColor(player.getColor());
+                    g2d.setStroke(new BasicStroke(2));
+                    g2d.drawOval(drawX, drawY, playerSize, playerSize);
+
+                } else {
+                    // Fallback ke oval berwarna jika gambar gagal dimuat
+                    g2d.setColor(player.getColor());
+                    g2d.fillOval(drawX, drawY, playerSize, playerSize);
+                    g2d.setColor(Color.WHITE);
+                    g2d.setStroke(new BasicStroke(2));
+                    g2d.drawOval(drawX, drawY, playerSize, playerSize);
+                }
+                // --- END NEW DRAWING LOGIC ---
+
 
                 if (player == gameEngine.getCurrentPlayer()) {
                     g2d.setColor(Color.YELLOW);

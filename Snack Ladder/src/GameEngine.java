@@ -28,6 +28,15 @@ class GameEngine {
     private AudioPlayer audioPlayer;
     private Timer movementTimer;
 
+    // MODIFIED: Pemetaan nama bidak ke jalur gambar
+    private static final Map<String, String> PLAYER_TOKENS = Map.of(
+            "Priscilla", "Gambar/Priscilla.jpg",
+            "Future Princess", "Gambar/FP.jpg",
+            "Power", "Gambar/Power.jpg",
+            "Kanna", "Gambar/Kanna.jpg",
+            "Rey", "Gambar/Rey.jpg"
+    );
+
     public GameEngine(Board board, GameVisualizer mainApp, AudioPlayer audioPlayer) {
         this.board = board;
         this.mainApp = mainApp;
@@ -43,56 +52,135 @@ class GameEngine {
 
     public void promptForPlayers() {
         while (true) {
-            // MODIFIKASI: Menghilangkan opsi "Custom (Choose counts)"
             String[] modes = {"Play vs AI (1 Human + AI)", "Player vs Player (All Humans)"};
             int choice = JOptionPane.showOptionDialog(mainApp, "Pilih mode permainan:", "Pilih Mode",
                     JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, modes, modes[0]);
 
-            // Cek jika pengguna memilih Cancel (CLOSED_OPTION) atau menutup jendela
             if (choice == JOptionPane.CLOSED_OPTION) {
-                // TIDAK KELUAR: Lanjutkan loop atau kembalikan ke awal (Loop while(true) akan efektif)
-                continue;
+                return; // Keluar dari loop jika pop-up ditutup
             }
 
             try {
                 if (choice == 0) { // Play vs AI (Index 0)
                     String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
-                    if (name == null) { continue; } // Handle Cancel pada input nama
+                    if (name == null) { continue; }
+
+                    Set<String> selectedTokens = new HashSet<>(); // NEW: Melacak bidak yang sudah dipilih
+
+                    String playerTokenPath = promptForToken(name, selectedTokens);
+                    if (playerTokenPath == null) { continue; }
+                    selectedTokens.add(playerTokenPath); // Tandai bidak pemain manusia sudah digunakan
+
                     int maxAi = MAX_PLAYERS - 1;
                     int aiCount = getValidIntInput("Masukkan jumlah AI (1.." + maxAi + "):", 1, maxAi);
-                    if (aiCount == -1) { continue; } // Handle Cancel pada input AI
+                    if (aiCount == -1) { continue; }
 
                     List<Player> customPlayers = new ArrayList<>();
                     Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
-                    customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], false));
-                    for (int i = 0; i < aiCount; i++) customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], true));
+
+                    customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], playerTokenPath, false));
+
+                    // NEW: Mendapatkan bidak yang tersisa untuk AI
+                    List<String> remainingTokens = new ArrayList<>();
+                    for (String tokenPath : PLAYER_TOKENS.values()) {
+                        if (!selectedTokens.contains(tokenPath)) {
+                            remainingTokens.add(tokenPath);
+                        }
+                    }
+
+                    for (int i = 0; i < aiCount; i++) {
+                        String aiTokenPath;
+                        if (i < remainingTokens.size()) {
+                            aiTokenPath = remainingTokens.get(i); // Ambil bidak unik yang tersisa
+                        } else {
+                            // Fallback (seharusnya tidak terjadi jika MAX_PLAYERS <= total tokens)
+                            aiTokenPath = PLAYER_TOKENS.values().iterator().next();
+                        }
+                        customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], aiTokenPath, true));
+                    }
                     Collections.shuffle(customPlayers);
                     setupGame(customPlayers);
-                    break; // Keluar dari loop setelah game di-setup
+                    break;
 
                 } else if (choice == 1) { // Player vs Player (Index 1)
                     int humanCount = getValidIntInput("Masukkan jumlah pemain (2.." + MAX_PLAYERS + "):", 2, MAX_PLAYERS);
-                    if (humanCount == -1) { continue; } // Handle Cancel pada input jumlah pemain
+                    if (humanCount == -1) { continue; }
+
                     List<Player> humans = new ArrayList<>();
                     Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
+
+                    Set<String> selectedTokens = new HashSet<>(); // NEW: Melacak bidak yang sudah dipilih
+                    boolean inputCanceled = false;
+
                     for (int i = 0; i < humanCount; i++) {
-                        String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk Pemain " + (i + 1) + ":", "Pemain " + (i + 1));
-                        if (name == null) name = "Pemain " + (i+1); // Jika Cancel, gunakan nama default
-                        humans.add(new Player(name, playerColors[i % playerColors.length], false));
+                        String pName = "Pemain " + (i + 1);
+                        String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama untuk " + pName + ":", pName);
+
+                        if (name == null) {
+                            inputCanceled = true;
+                            break;
+                        }
+
+                        // MODIFIED: Kirim bidak yang sudah dipilih ke promptForToken
+                        String tokenPath = promptForToken(name, selectedTokens);
+                        if (tokenPath == null) {
+                            inputCanceled = true;
+                            break;
+                        }
+
+                        selectedTokens.add(tokenPath); // Tandai bidak sudah digunakan
+                        humans.add(new Player(name, playerColors[i % playerColors.length], tokenPath, false));
                     }
+
+                    if (inputCanceled) {
+                        continue; // Kembali ke pemilihan mode
+                    }
+
                     Collections.shuffle(humans);
                     setupGame(humans);
-                    break; // Keluar dari loop setelah game di-setup
-
+                    break;
                 }
-                // Logika untuk Custom (Choose counts) telah dihapus.
             } catch (Exception e) {
                 e.printStackTrace();
-                // Jika terjadi Error (misalnya di getValidIntInput), ulang permintaan
                 continue;
             }
         }
     }
+
+    // MODIFIED: Helper method untuk meminta pemilihan bidak dengan filter
+    private String promptForToken(String playerName, Set<String> usedTokens) {
+        // 1. Buat daftar bidak yang tersedia
+        Map<String, String> availableTokens = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : PLAYER_TOKENS.entrySet()) {
+            if (!usedTokens.contains(entry.getValue())) {
+                availableTokens.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        if (availableTokens.isEmpty()) {
+            JOptionPane.showMessageDialog(mainApp, "Semua bidak sudah dipilih! Tidak cukup bidak untuk pemain ini.", "Peringatan", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+
+        // 2. Tampilkan dialog dengan bidak yang tersedia saja
+        Object[] keys = availableTokens.keySet().toArray();
+        String choice = (String) JOptionPane.showInputDialog(
+                mainApp,
+                "Pilih bidak unik untuk " + playerName + ":",
+                "Pilih Bidak Pemain",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                keys,
+                keys.length > 0 ? keys[0] : null
+        );
+
+        // 3. Kembalikan jalur gambar yang sesuai
+        if (choice != null && availableTokens.containsKey(choice)) {
+            return availableTokens.get(choice);
+        }
+        return null; // Dibatalkan atau tidak valid
+    }
+
 
     private int getValidIntInput(String message, int min, int max) {
         while (true) {
@@ -118,7 +206,7 @@ class GameEngine {
         if (controlPanel != null) {
             controlPanel.updateTurnInfo(currentPlayer);
         }
-        mainApp.updateLeaderboardDisplay(); // Diperbarui: Panggil melalui GameVisualizer
+        mainApp.updateLeaderboardDisplay();
         mainApp.repaint();
         scheduleAutoRollIfNeeded();
     }
@@ -263,31 +351,7 @@ class GameEngine {
                     System.out.println(currentPlayer.getName() + " melewati tangga karena tidak punya Prime Power.");
                 }
             }
-            // else if (target < newPosId) { // Ular Turun - DIHAPUS
-            //     targetConnectionNode = target;
-            //     connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nKembali dari Node " + newPosId + " ke Node " + target;
-            //     connectionTriggered = true;
-            // }
         }
-
-        // Cek Koneksi (Mundur/Jatuh) - DIHAPUS
-        /*
-        if (direction < 0) {
-            for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
-                if (entry.getValue() == newPosId) {
-                    int start = entry.getKey();
-                    if (start < newPosId) { // Ujung Atas Tangga
-                        if (currentPlayer.hasClimbedLadder(newPosId)) {
-                            targetConnectionNode = start;
-                            connectionMessage = "⚠️ TERGELINCIR MUNDUR! ⚠️\nAnda merosot kembali ke bawah tangga.";
-                            connectionTriggered = true;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        */
 
         if (connectionTriggered && targetConnectionNode != -1) {
             // Pause timer gerakan utama
@@ -349,7 +413,7 @@ class GameEngine {
             if (board.hasScore(pos)) {
                 int gatheredScore = board.collectScore(pos);
                 acting.addScore(gatheredScore);
-                audioPlayer.playEffectImmediately("score"); // Diperbaiki: Menggunakan sound "score"
+                audioPlayer.playEffectImmediately("score");
                 JOptionPane.showMessageDialog(mainApp,
                         acting.getName() + " mendapatkan " + gatheredScore + " Poin!",
                         "Score Get!", JOptionPane.INFORMATION_MESSAGE);
@@ -387,7 +451,7 @@ class GameEngine {
             controlPanel.enableRollButton(true);
             if (currentPlayer != null) controlPanel.updatePlayerStatus(currentPlayer);
         }
-        mainApp.updateLeaderboardDisplay(); // Diperbarui: Panggil melalui GameVisualizer
+        mainApp.updateLeaderboardDisplay();
         scheduleAutoRollIfNeeded();
     }
 
