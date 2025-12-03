@@ -18,6 +18,8 @@ class GameControlPanel extends JPanel {
     private JButton applyNodesButton;
     private JButton startGameButton;
 
+    // Variabel Developer Mode DIHAPUS
+
     private AudioPlayer audioPlayer;
     private JButton muteButton;
 
@@ -128,11 +130,8 @@ class GameControlPanel extends JPanel {
         add(statusLabel);
         add(Box.createVerticalStrut(10));
 
-        add(Box.createVerticalGlue()); // Glue here to push content to the top
-        // Leaderboard logic is removed from here
+        add(Box.createVerticalGlue());
     }
-
-    // Metode updateLeaderboardDisplay() dihapus
 
     private JLabel createTitleLabel(String text, Color color) {
         JLabel label = new JLabel(text);

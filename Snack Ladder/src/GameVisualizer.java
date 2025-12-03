@@ -13,8 +13,13 @@ public class GameVisualizer extends JFrame {
     private JLabel topScoresLabel;
     private JLabel topWinsLabel;
 
+    private static final int BOARD_W = 850;
+    private static final int BOARD_H = 627;
+    private static final int CONTROL_W = 280;
+    private static final int LEAD_W = 200;
+
     public GameVisualizer() {
-        setTitle("Pyramid Adventure: Petualangan di Gurun Mesir"); // Judul Baru
+        setTitle("Pyramid Adventure: Petualangan di Gurun Mesir");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -27,19 +32,25 @@ public class GameVisualizer extends JFrame {
             }
         });
 
-        setSize(1000, 850);
+        setSize(BOARD_W + CONTROL_W + LEAD_W, BOARD_H + 50);
         setLocationRelativeTo(null);
 
         audioPlayer = new AudioPlayer();
+
+        // --- KOREKSI: Hanya panggil dengan 1 argumen ---
         initGameComponents(64);
 
         showMainScreen();
         audioPlayer.playBackgroundMusic();
     }
 
+    // --- KOREKSI: Method definisi initGameComponents hanya 1 argumen ---
     private void initGameComponents(int nodeCount) {
         this.currentNodeCount = nodeCount;
+
+        // --- KOREKSI: Konstruktor Board hanya 1 argumen ---
         Board board = new Board(nodeCount);
+
         this.gameEngine = new GameEngine(board, this, audioPlayer);
         this.boardPanel = new BoardPanel(board, gameEngine);
         this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this, audioPlayer);
@@ -47,6 +58,7 @@ public class GameVisualizer extends JFrame {
 
         this.leaderboardPanel = createLeaderboardPanel();
     }
+    // --- AKHIR KOREKSI initGameComponents ---
 
     public BoardPanel getBoardPanel() {
         return boardPanel;
@@ -94,7 +106,6 @@ public class GameVisualizer extends JFrame {
         panel.add(title);
         panel.add(Box.createVerticalStrut(20));
 
-        // PERBAIKAN: Menugaskan ke variabel anggota (this.topWinsLabel)
         this.topWinsLabel = new JLabel("<html><center><b>🏆 TOP 3 WINS 🏆</b></center><br>Belum ada data.</html>");
         this.topWinsLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         this.topWinsLabel.setForeground(Color.WHITE);
@@ -102,7 +113,6 @@ public class GameVisualizer extends JFrame {
         panel.add(this.topWinsLabel);
         panel.add(Box.createVerticalStrut(20));
 
-        // PERBAIKAN: Menugaskan ke variabel anggota (this.topScoresLabel)
         this.topScoresLabel = new JLabel("<html><center><b>💰 TOP 3 HIGH SCORES 💰</b></center><br>Belum ada data.</html>");
         this.topScoresLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         this.topScoresLabel.setForeground(Color.WHITE);
@@ -125,7 +135,6 @@ public class GameVisualizer extends JFrame {
                 wins.replace("\n", "<br>") + "</html>";
 
         SwingUtilities.invokeLater(() -> {
-            // PERBAIKAN: Perbarui label anggota yang sudah terhubung ke panel
             if (this.topScoresLabel != null) {
                 this.topScoresLabel.setText(formattedScores);
             }

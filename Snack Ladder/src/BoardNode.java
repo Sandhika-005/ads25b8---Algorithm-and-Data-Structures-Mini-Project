@@ -5,8 +5,7 @@ import java.util.List;
 class BoardNode {
     private final int id;
     private int x, y;
-    // PERBAIKAN: SIZE dijadikan variabel static yang bisa diubah oleh Board
-    public static int SIZE = 60; // Ukuran dasar awal
+    public static int SIZE = 60;
     private final boolean isPointUp;
     private Color color;
     private List<Player> occupyingPlayers;
@@ -20,11 +19,16 @@ class BoardNode {
         this.occupyingPlayers = new ArrayList<>();
     }
 
-    // Getters and Setters
     public int getId() { return id; }
     public int getX() { return x; }
     public int getY() { return y; }
-    public int getSize() { return SIZE; } // Menggunakan variabel static SIZE yang dinamis
+
+    // --- MODIFIKASI: Setter X dan Y DIHAPUS ---
+    /* public void setX(int x) { this.x = x; } */
+    /* public void setY(int y) { this.y = y; } */
+    // --- AKHIR MODIFIKASI ---
+
+    public int getSize() { return SIZE; }
     public boolean isPointUp() { return isPointUp; }
     public List<Player> getOccupyingPlayers() { return occupyingPlayers; }
 
