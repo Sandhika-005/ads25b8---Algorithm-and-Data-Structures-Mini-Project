@@ -14,11 +14,7 @@ class GameControlPanel extends JPanel {
     private JLabel statusLabel;
 
     private GameVisualizer mainApp;
-    // JSpinner nodesSpinner DIHAPUS
-    // JButton applyNodesButton DIHAPUS
     private JButton startGameButton;
-
-    // Variabel Developer Mode DIHAPUS
 
     private AudioPlayer audioPlayer;
     private JButton muteButton;
@@ -39,17 +35,16 @@ class GameControlPanel extends JPanel {
         setPreferredSize(new Dimension(280, 800));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // START MODIFIKASI: Node count control DIHAPUS, Ganti dengan tombol START 64 nodes
+        // START MODIFIKASI: Tombol START GAME
         add(createTitleLabel("Graph Configuration", new Color(150, 150, 150)));
         add(Box.createVerticalStrut(8));
 
         startGameButton = createControlButton("START GAME (64 Nodes)", new Color(33, 150, 243));
+        // MODIFIED Action Listener: Memanggil GameVisualizer untuk memulai konfigurasi pemain
         startGameButton.addActionListener(e -> {
-            // applyNodesButton.setEnabled(false); // REFERENSI DIHAPUS
-            // nodesSpinner.setEnabled(false); // REFERENSI DIHAPUS
-            startGameButton.setEnabled(false);
-            if (gameEngine != null) SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
+            if (mainApp != null) mainApp.startPlayerConfiguration();
         });
+        startGameButton.setEnabled(true); // Pastikan tombol aktif saat startup
         add(startGameButton);
         add(Box.createVerticalStrut(10));
         // AKHIR MODIFIKASI
@@ -116,6 +111,19 @@ class GameControlPanel extends JPanel {
         add(Box.createVerticalStrut(10));
 
         add(Box.createVerticalGlue());
+    }
+
+    // NEW: Metode untuk mengontrol status tombol START GAME
+    public void enableStartButton(boolean enabled) {
+        if (startGameButton != null) {
+            startGameButton.setEnabled(enabled);
+            // Tambahan: Pastikan tombol ROLL DICE dinonaktifkan jika START diaktifkan
+            if (enabled) {
+                rollDiceButton.setEnabled(false);
+                turnLabel.setText("Turn: Waiting for Players...");
+                turnLabel.setForeground(Color.LIGHT_GRAY);
+            }
+        }
     }
 
     private JLabel createTitleLabel(String text, Color color) {
@@ -187,6 +195,8 @@ class GameControlPanel extends JPanel {
             turnLabel.setText("Turn: " + name);
             turnLabel.setForeground(currentPlayer.getColor());
             rollDiceButton.setEnabled(true);
+            // Menonaktifkan tombol START setelah game berhasil dimulai
+            if (startGameButton != null) startGameButton.setEnabled(false);
         } else {
             turnLabel.setText("GAME OVER");
             turnLabel.setForeground(Color.YELLOW);

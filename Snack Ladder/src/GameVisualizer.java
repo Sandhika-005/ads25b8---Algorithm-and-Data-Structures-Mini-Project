@@ -36,11 +36,50 @@ public class GameVisualizer extends JFrame {
 
         audioPlayer = new AudioPlayer();
 
-        initGameComponents(64);
+        // MODIFIED: Panggil setupAplication TANPA promptForPlayers()
+        setupApplication();
 
-        showMainScreen();
+        // Finalisasi tampilan
+        this.pack();
+        this.setVisible(true);
         audioPlayer.playBackgroundMusic();
     }
+
+    // NEW: Metode yang dipanggil ketika tombol "START GAME" ditekan
+    public void startPlayerConfiguration() {
+        // 1. Matikan tombol START GAME saat pop-up muncul
+        if (controlPanel != null) controlPanel.enableStartButton(false);
+
+        // 2. Memulai rangkaian pop-up input pemain
+        this.gameEngine.promptForPlayers();
+    }
+
+    // NEW: Metode yang dipanggil ketika user memilih "Mulai Baru (Ganti Pemain)"
+    public void startNewConfiguration() {
+        // 1. Bersihkan UI/Frame
+        this.getContentPane().removeAll();
+
+        // 2. Setup dan konfigurasi pemain baru
+        initGameComponents(64);
+
+        // 3. Panggil konfigurasi pemain
+        startPlayerConfiguration();
+
+        // 4. Tampilkan UI dan refresh
+        showMainScreen();
+        this.revalidate();
+        this.repaint();
+    }
+
+    private void setupApplication() {
+        initGameComponents(64);
+        this.leaderboardPanel = createLeaderboardPanel();
+
+        // HILANG: Tidak ada pemanggilan gameEngine.promptForPlayers() di sini
+
+        showMainScreen();
+    }
+
 
     private void initGameComponents(int nodeCount) {
         this.currentNodeCount = nodeCount;
@@ -48,12 +87,9 @@ public class GameVisualizer extends JFrame {
         Board board = new Board(nodeCount);
 
         this.gameEngine = new GameEngine(board, this, audioPlayer);
-        // BoardPanel hanya menerima board dan gameEngine
         this.boardPanel = new BoardPanel(board, gameEngine);
         this.controlPanel = new GameControlPanel(gameEngine, boardPanel, this, audioPlayer);
         this.gameEngine.setControlPanel(controlPanel);
-
-        this.leaderboardPanel = createLeaderboardPanel();
     }
 
     public BoardPanel getBoardPanel() {
@@ -67,12 +103,13 @@ public class GameVisualizer extends JFrame {
             audioPlayer.playBackgroundMusic();
         }
         this.gameEngine.setupGame(existingPlayers);
+        this.revalidate();
+        this.repaint();
     }
 
     private void showMainScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        // Setting background mainPanel
         mainPanel.setBackground(new Color(45, 60, 80));
 
         mainPanel.add(boardPanel, BorderLayout.CENTER);
@@ -80,11 +117,12 @@ public class GameVisualizer extends JFrame {
         boardPanel.setPreferredSize(new Dimension(BOARD_W, BOARD_H));
 
         mainPanel.add(controlPanel, BorderLayout.WEST);
-        mainPanel.add(leaderboardPanel, BorderLayout.EAST);
 
-        setContentPane(mainPanel);
-        revalidate();
-        repaint();
+        if (this.leaderboardPanel != null) {
+            mainPanel.add(leaderboardPanel, BorderLayout.EAST);
+        }
+
+        this.setContentPane(mainPanel);
     }
 
     private JPanel createLeaderboardPanel() {
@@ -144,8 +182,6 @@ public class GameVisualizer extends JFrame {
         JFrame.setDefaultLookAndFeelDecorated(true);
         SwingUtilities.invokeLater(() -> {
             GameVisualizer frame = new GameVisualizer();
-            frame.pack();
-            frame.setVisible(true);
         });
     }
 }

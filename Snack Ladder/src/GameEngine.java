@@ -28,7 +28,7 @@ class GameEngine {
     private AudioPlayer audioPlayer;
     private Timer movementTimer;
 
-    // MODIFIED: Pemetaan nama bidak ke jalur gambar
+    // Pemetaan nama bidak ke jalur gambar
     private static final Map<String, String> PLAYER_TOKENS = Map.of(
             "Priscilla", "Gambar/Priscilla.jpg",
             "Future Princess", "Gambar/FP.jpg",
@@ -65,11 +65,11 @@ class GameEngine {
                     String name = JOptionPane.showInputDialog(mainApp, "Masukkan nama pemain (Anda):", "Pemain 1");
                     if (name == null) { continue; }
 
-                    Set<String> selectedTokens = new HashSet<>(); // NEW: Melacak bidak yang sudah dipilih
+                    Set<String> selectedTokens = new HashSet<>();
 
                     String playerTokenPath = promptForToken(name, selectedTokens);
                     if (playerTokenPath == null) { continue; }
-                    selectedTokens.add(playerTokenPath); // Tandai bidak pemain manusia sudah digunakan
+                    selectedTokens.add(playerTokenPath);
 
                     int maxAi = MAX_PLAYERS - 1;
                     int aiCount = getValidIntInput("Masukkan jumlah AI (1.." + maxAi + "):", 1, maxAi);
@@ -80,7 +80,7 @@ class GameEngine {
 
                     customPlayers.add(new Player(name.trim().isEmpty() ? "Pemain 1" : name.trim(), playerColors[0], playerTokenPath, false));
 
-                    // NEW: Mendapatkan bidak yang tersisa untuk AI
+                    // Mendapatkan bidak yang tersisa untuk AI
                     List<String> remainingTokens = new ArrayList<>();
                     for (String tokenPath : PLAYER_TOKENS.values()) {
                         if (!selectedTokens.contains(tokenPath)) {
@@ -91,9 +91,8 @@ class GameEngine {
                     for (int i = 0; i < aiCount; i++) {
                         String aiTokenPath;
                         if (i < remainingTokens.size()) {
-                            aiTokenPath = remainingTokens.get(i); // Ambil bidak unik yang tersisa
+                            aiTokenPath = remainingTokens.get(i);
                         } else {
-                            // Fallback (seharusnya tidak terjadi jika MAX_PLAYERS <= total tokens)
                             aiTokenPath = PLAYER_TOKENS.values().iterator().next();
                         }
                         customPlayers.add(new Player("AI " + (i + 1), playerColors[(i + 1) % playerColors.length], aiTokenPath, true));
@@ -109,7 +108,7 @@ class GameEngine {
                     List<Player> humans = new ArrayList<>();
                     Color[] playerColors = {Color.RED, Color.BLUE, new Color(60,180,75), Color.MAGENTA, Color.ORANGE};
 
-                    Set<String> selectedTokens = new HashSet<>(); // NEW: Melacak bidak yang sudah dipilih
+                    Set<String> selectedTokens = new HashSet<>();
                     boolean inputCanceled = false;
 
                     for (int i = 0; i < humanCount; i++) {
@@ -121,19 +120,18 @@ class GameEngine {
                             break;
                         }
 
-                        // MODIFIED: Kirim bidak yang sudah dipilih ke promptForToken
                         String tokenPath = promptForToken(name, selectedTokens);
                         if (tokenPath == null) {
                             inputCanceled = true;
                             break;
                         }
 
-                        selectedTokens.add(tokenPath); // Tandai bidak sudah digunakan
+                        selectedTokens.add(tokenPath);
                         humans.add(new Player(name, playerColors[i % playerColors.length], tokenPath, false));
                     }
 
                     if (inputCanceled) {
-                        continue; // Kembali ke pemilihan mode
+                        continue;
                     }
 
                     Collections.shuffle(humans);
@@ -147,9 +145,9 @@ class GameEngine {
         }
     }
 
-    // MODIFIED: Helper method untuk meminta pemilihan bidak dengan filter
+    // Helper method untuk meminta pemilihan bidak dengan filter
     private String promptForToken(String playerName, Set<String> usedTokens) {
-        // 1. Buat daftar bidak yang tersedia
+        // Menggunakan LinkedHashMap untuk mempertahankan urutan tampilan
         Map<String, String> availableTokens = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : PLAYER_TOKENS.entrySet()) {
             if (!usedTokens.contains(entry.getValue())) {
@@ -162,7 +160,7 @@ class GameEngine {
             return null;
         }
 
-        // 2. Tampilkan dialog dengan bidak yang tersedia saja
+        // Tampilkan dialog dengan bidak yang tersedia saja
         Object[] keys = availableTokens.keySet().toArray();
         String choice = (String) JOptionPane.showInputDialog(
                 mainApp,
@@ -174,7 +172,7 @@ class GameEngine {
                 keys.length > 0 ? keys[0] : null
         );
 
-        // 3. Kembalikan jalur gambar yang sesuai
+        // Kembalikan jalur gambar yang sesuai
         if (choice != null && availableTokens.containsKey(choice)) {
             return availableTokens.get(choice);
         }
@@ -484,9 +482,21 @@ class GameEngine {
             }
             mainApp.repaint();
 
+            // MODIFIED: Mengganti dialog restart
             SwingUtilities.invokeLater(() -> {
-                int res = JOptionPane.showConfirmDialog(mainApp, "Main lagi?", "Restart", JOptionPane.YES_NO_OPTION);
-                if (res == JOptionPane.YES_OPTION) {
+                String[] options = {"Main Lagi (Pemain Sama)", "Mulai Baru (Ganti Pemain)", "Tutup Aplikasi"};
+                int res = JOptionPane.showOptionDialog(
+                        mainApp,
+                        "Permainan Selesai. Apa yang ingin Anda lakukan?",
+                        "Pilih Aksi",
+                        JOptionPane.YES_NO_CANCEL_OPTION,
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        options,
+                        options[0]
+                );
+
+                if (res == JOptionPane.YES_OPTION) { // 0: Main Lagi (Pemain Sama)
                     List<Player> allPlayers = new ArrayList<>();
                     if (currentPlayer != null) allPlayers.add(currentPlayer);
                     allPlayers.addAll(turnQueue);
@@ -495,8 +505,13 @@ class GameEngine {
                         p.resetState();
                     }
 
-                    mainApp.restartGame(allPlayers);
-                } else {
+                    mainApp.restartGame(allPlayers); // Menggunakan pemain yang sama (TIDAK ADA INPUT NAMA)
+
+                } else if (res == JOptionPane.NO_OPTION) { // 1: Mulai Baru (Ganti Pemain)
+                    audioPlayer.stopBackgroundMusic();
+                    mainApp.startNewConfiguration(); // Memulai ulang konfigurasi (AKAN ADA INPUT NAMA)
+
+                } else { // 2: Tutup Aplikasi (atau Cancel)
                     audioPlayer.playEffectImmediately("gameOver");
                     System.exit(0);
                 }
