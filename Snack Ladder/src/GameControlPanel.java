@@ -14,8 +14,8 @@ class GameControlPanel extends JPanel {
     private JLabel statusLabel;
 
     private GameVisualizer mainApp;
-    private JSpinner nodesSpinner;
-    private JButton applyNodesButton;
+    // JSpinner nodesSpinner DIHAPUS
+    // JButton applyNodesButton DIHAPUS
     private JButton startGameButton;
 
     // Variabel Developer Mode DIHAPUS
@@ -39,35 +39,20 @@ class GameControlPanel extends JPanel {
         setPreferredSize(new Dimension(280, 800));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // Node count control
+        // START MODIFIKASI: Node count control DIHAPUS, Ganti dengan tombol START 64 nodes
         add(createTitleLabel("Graph Configuration", new Color(150, 150, 150)));
         add(Box.createVerticalStrut(8));
-        JPanel nodesPanel = new JPanel();
-        nodesPanel.setBackground(BG_DARK);
-        nodesPanel.setMaximumSize(new Dimension(240, 40));
-        nodesPanel.setLayout(new BorderLayout(6, 0));
-        nodesSpinner = new JSpinner(new SpinnerNumberModel(64, 4, 200, 1));
-        ((JSpinner.DefaultEditor) nodesSpinner.getEditor()).getTextField().setHorizontalAlignment(SwingConstants.CENTER);
-        nodesPanel.add(new JLabel("Nodes:"), BorderLayout.WEST);
-        nodesPanel.add(nodesSpinner, BorderLayout.CENTER);
-        add(nodesPanel);
-        add(Box.createVerticalStrut(6));
-        applyNodesButton = createControlButton("APPLY NODES", ACCENT_COLOR);
-        applyNodesButton.addActionListener(e -> {
-            int nodes = (int) nodesSpinner.getValue();
-            if (mainApp != null) mainApp.updateBoardNodeCount(nodes);
-        });
-        add(applyNodesButton);
-        add(Box.createVerticalStrut(6));
-        startGameButton = createControlButton("START GAME", new Color(33, 150, 243));
+
+        startGameButton = createControlButton("START GAME (64 Nodes)", new Color(33, 150, 243));
         startGameButton.addActionListener(e -> {
-            applyNodesButton.setEnabled(false);
-            nodesSpinner.setEnabled(false);
+            // applyNodesButton.setEnabled(false); // REFERENSI DIHAPUS
+            // nodesSpinner.setEnabled(false); // REFERENSI DIHAPUS
             startGameButton.setEnabled(false);
             if (gameEngine != null) SwingUtilities.invokeLater(() -> gameEngine.promptForPlayers());
         });
         add(startGameButton);
         add(Box.createVerticalStrut(10));
+        // AKHIR MODIFIKASI
 
         // Mute/Unmute Button
         muteButton = createControlButton("MUTE BACKSOUND", new Color(100, 100, 100));

@@ -7,7 +7,7 @@ public class GameVisualizer extends JFrame {
     private GameControlPanel controlPanel;
     private GameEngine gameEngine;
     private AudioPlayer audioPlayer;
-    private int currentNodeCount = 64;
+    private int currentNodeCount = 64; // DIJAGA TETAP 64
 
     private JPanel leaderboardPanel;
     private JLabel topScoresLabel;
@@ -37,7 +37,7 @@ public class GameVisualizer extends JFrame {
 
         audioPlayer = new AudioPlayer();
 
-        initGameComponents(64);
+        initGameComponents(64); // Panggil langsung dengan 64
 
         showMainScreen();
         audioPlayer.playBackgroundMusic();
@@ -60,6 +60,8 @@ public class GameVisualizer extends JFrame {
         return boardPanel;
     }
 
+    // START MODIFIKASI: updateBoardNodeCount DIHAPUS
+    /*
     public void updateBoardNodeCount(int nodeCount) {
         initGameComponents(nodeCount);
         showMainScreen();
@@ -67,6 +69,8 @@ public class GameVisualizer extends JFrame {
             audioPlayer.playBackgroundMusic();
         }
     }
+    */
+    // AKHIR MODIFIKASI
 
     public void restartGame(List<Player> existingPlayers) {
         initGameComponents(this.currentNodeCount);
