@@ -19,7 +19,7 @@ public class GameVisualizer extends JFrame {
     private static final int LEAD_W = 200;
 
     public GameVisualizer() {
-        setTitle("Pyramid Adventure: Petualangan di Gurun Mesir");
+        setTitle("Victoria Island Adventure: Petualangan di Pulau Victoria");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -32,23 +32,20 @@ public class GameVisualizer extends JFrame {
             }
         });
 
-        setSize(BOARD_W + CONTROL_W + LEAD_W, BOARD_H + 50);
+        // setSize(BOARD_W + CONTROL_W + LEAD_W, BOARD_H + 50); -- Dihapus, menggunakan pack() di main
         setLocationRelativeTo(null);
 
         audioPlayer = new AudioPlayer();
 
-        // --- KOREKSI: Hanya panggil dengan 1 argumen ---
         initGameComponents(64);
 
         showMainScreen();
         audioPlayer.playBackgroundMusic();
     }
 
-    // --- KOREKSI: Method definisi initGameComponents hanya 1 argumen ---
     private void initGameComponents(int nodeCount) {
         this.currentNodeCount = nodeCount;
 
-        // --- KOREKSI: Konstruktor Board hanya 1 argumen ---
         Board board = new Board(nodeCount);
 
         this.gameEngine = new GameEngine(board, this, audioPlayer);
@@ -58,7 +55,6 @@ public class GameVisualizer extends JFrame {
 
         this.leaderboardPanel = createLeaderboardPanel();
     }
-    // --- AKHIR KOREKSI initGameComponents ---
 
     public BoardPanel getBoardPanel() {
         return boardPanel;
@@ -83,7 +79,16 @@ public class GameVisualizer extends JFrame {
 
     private void showMainScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // --- KOREKSI: Setting background mainPanel untuk mencegah painting leak ---
+        // Warna gelap yang konsisten (sama seperti background ControlPanel)
+        mainPanel.setBackground(new Color(45, 60, 80));
+        // --- AKHIR KOREKSI ---
+
         mainPanel.add(boardPanel, BorderLayout.CENTER);
+
+        boardPanel.setPreferredSize(new Dimension(BOARD_W, BOARD_H));
+
         mainPanel.add(controlPanel, BorderLayout.WEST);
         mainPanel.add(leaderboardPanel, BorderLayout.EAST);
 
@@ -96,7 +101,7 @@ public class GameVisualizer extends JFrame {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(new Color(45, 60, 80));
-        panel.setPreferredSize(new Dimension(200, 0));
+        panel.setPreferredSize(new Dimension(LEAD_W, CONTROL_W));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         JLabel title = new JLabel("LEADERBOARD");
@@ -147,6 +152,10 @@ public class GameVisualizer extends JFrame {
 
     public static void main(String[] args) {
         JFrame.setDefaultLookAndFeelDecorated(true);
-        SwingUtilities.invokeLater(() -> new GameVisualizer().setVisible(true));
+        SwingUtilities.invokeLater(() -> {
+            GameVisualizer frame = new GameVisualizer();
+            frame.pack();
+            frame.setVisible(true);
+        });
     }
 }

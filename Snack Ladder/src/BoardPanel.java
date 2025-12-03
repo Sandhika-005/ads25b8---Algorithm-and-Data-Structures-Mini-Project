@@ -14,8 +14,8 @@ class BoardPanel extends JPanel {
     private final GameEngine gameEngine;
 
     private BufferedImage backgroundImage;
-    // Asumsi gambar Victoria Island berada di root resource
     private final String BG_IMAGE_RESOURCE_PATH = "Gambar/Desain tanpa judul.jpg";
+    private final Color COLOR_BG = new Color(45, 60, 80); // Warna Dasar yang Seragam
 
     private Player animatingPlayer = null;
     private double animX, animY;
@@ -26,11 +26,10 @@ class BoardPanel extends JPanel {
     private Runnable onAnimComplete;
     private Timer animTimer;
 
-    // Variabel Developer Mode Dihapus
-
     public BoardPanel(Board board, GameEngine gameEngine) {
         this.board = board;
         this.gameEngine = gameEngine;
+        // setBackground dipertahankan untuk komponen, tetapi kita akan menggambar BG secara manual
         setBackground(new Color(30, 40, 60));
 
         try (InputStream is = BoardPanel.class.getResourceAsStream(BG_IMAGE_RESOURCE_PATH)) {
@@ -48,11 +47,9 @@ class BoardPanel extends JPanel {
         }
 
         animTimer = new Timer(16, e -> updateAnimation());
-
-        // Pemanggilan setupDeveloperModeListeners DIHAPUS
     }
 
-    // Metode Developer Mode DIHAPUS
+    // ... (metode getCentroid, animatePlayerMovement, updateAnimation) ...
 
     private Point getCentroid(BoardNode node) {
         int size = BoardNode.SIZE;
@@ -113,10 +110,17 @@ class BoardPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D) g.create();
 
-        // --- MENGGAMBAR BACKGROUND DENGAN LOGIKA CONTAIN (Scale to Fit) ---
+        int panelW = getWidth();
+        int panelH = getHeight();
+
+        // --- MODIFIKASI: 1. Bersihkan seluruh area panel dengan warna seragam ---
+        // Ini memastikan tidak ada kebocoran warna dari panel lain yang terlihat.
+        g2d.setColor(COLOR_BG);
+        g2d.fillRect(0, 0, panelW, panelH);
+        // --- AKHIR MODIFIKASI 1 ---
+
+        // --- 2. MENGGAMBAR BACKGROUND DENGAN LOGIKA CONTAIN (Scale to Fit) ---
         if (backgroundImage != null) {
-            int panelW = getWidth();
-            int panelH = getHeight();
             int imageW = backgroundImage.getWidth();
             int imageH = backgroundImage.getHeight();
 
@@ -144,8 +148,6 @@ class BoardPanel extends JPanel {
                     RenderingHints.VALUE_RENDER_QUALITY);
 
             g2d.drawImage(backgroundImage, drawX, drawY, drawW, drawH, this);
-        } else {
-            super.paintComponent(g);
         }
 
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -156,6 +158,8 @@ class BoardPanel extends JPanel {
 
         g2d.dispose();
     }
+
+    // ... (rest of the drawing methods remain the same) ...
 
     private void drawNodes(Graphics2D g2d) {
         int size = BoardNode.SIZE;
@@ -243,7 +247,6 @@ class BoardPanel extends JPanel {
         g2d.drawPolygon(star);
     }
 
-    // --- MODIFIKASI: Visual Tangga Garis Putus-Putus ---
     private void drawConnectionsVisuals(Graphics2D g2d) {
         Map<Integer, Integer> connections = board.getConnections();
 
@@ -282,7 +285,6 @@ class BoardPanel extends JPanel {
             g2d.draw(new Line2D.Double(x1, y1, x2, y2));
         }
     }
-    // --- AKHIR MODIFIKASI drawConnectionsVisuals ---
 
     private void drawPlayers(Graphics2D g2d) {
         int playerSize = 18;
