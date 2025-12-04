@@ -336,17 +336,45 @@ class GameEngine {
         String connectionMessage = "";
         boolean isLadderUp = false;
 
-        // Cek Koneksi (Maju/Tangga/Ular)
-        if (direction > 0 && connections.containsKey(newPosId)) {
+        // --- CEK KONEKSI NORMAL (Start -> End) ---
+        if (connections.containsKey(newPosId)) {
             int target = connections.get(newPosId);
-            if (target > newPosId) { // Tangga Naik
-                if (currentPlayer.isPrimePowerActive()) {
-                    targetConnectionNode = target;
-                    connectionMessage = currentPlayer.getName() + " menggunakan PRIME POWER untuk naik Tangga!\nPindah ke Node " + target;
+
+            if (target > newPosId) {
+                // TANGGA (Naik): Hanya jika MAJU dan punya Prime Power
+                if (direction > 0) {
+                    if (currentPlayer.isPrimePowerActive()) {
+                        targetConnectionNode = target;
+                        connectionMessage = currentPlayer.getName() + " menggunakan PRIME POWER untuk naik Tangga!\nPindah ke Node " + target;
+                        connectionTriggered = true;
+                        isLadderUp = true;
+                    } else {
+                        System.out.println(currentPlayer.getName() + " melewati tangga karena tidak punya Prime Power.");
+                    }
+                }
+            } else {
+                // ULAR (Turun): Selalu aktif (Maju/Mundur)
+                targetConnectionNode = target;
+                connectionMessage = currentPlayer.getName() + " terkena Ular/Jebakan!\nTurun ke Node " + target;
+                connectionTriggered = true;
+                isLadderUp = false;
+            }
+        }
+
+        // --- CEK KONEKSI MUNDUR (End -> Start) KHUSUS TANGGA ---
+        // Jika sedang mundur, dan mendarat di Puncak Tangga, harus turun kembali.
+        if (direction < 0 && !connectionTriggered) {
+            for (Map.Entry<Integer, Integer> entry : connections.entrySet()) {
+                int start = entry.getKey();
+                int end = entry.getValue();
+
+                // Cek apakah node ini adalah Ujung Atas dari sebuah Tangga (Start < End)
+                if (end == newPosId && start < end) {
+                    targetConnectionNode = start; // Turun ke kaki tangga
+                    connectionMessage = currentPlayer.getName() + " mundur melewati Tangga!\nTurun kembali ke Node " + start;
                     connectionTriggered = true;
-                    isLadderUp = true;
-                } else {
-                    System.out.println(currentPlayer.getName() + " melewati tangga karena tidak punya Prime Power.");
+                    isLadderUp = false; // Visual turun
+                    break;
                 }
             }
         }
@@ -357,7 +385,7 @@ class GameEngine {
 
             // Efek suara & pesan
             audioPlayer.playEffectImmediately("connection");
-            String title = isLadderUp ? "Tangga Dinaiki!" : (direction < 0 ? "Koneksi Terbalik" : "Ular!");
+            String title = isLadderUp ? "Tangga Dinaiki!" : (direction < 0 ? "Mundur Terkena Koneksi" : "Terkena Ular!");
             int msgType = isLadderUp ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE;
             JOptionPane.showMessageDialog(mainApp, connectionMessage, title, msgType);
 
@@ -372,10 +400,12 @@ class GameEngine {
                     currentPlayer,
                     startNode,
                     endNode,
-                    SLIDE_DURATION_MS, // Durasi meluncur (1.5 detik)
+                    SLIDE_DURATION_MS,
                     () -> {
                         // CALLBACK SETELAH ANIMASI SELESAI
                         movePlayerToSpecificNode(finalTarget);
+
+                        // Jika naik tangga, catat. Jika turun tangga (mundur), tidak perlu dicatat sebagai achievement.
                         if (finalIsLadderUp) {
                             currentPlayer.addClimbedLadder(finalTarget);
                         }
