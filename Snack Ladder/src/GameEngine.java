@@ -383,6 +383,12 @@ class GameEngine {
             // Pause timer gerakan utama
             if (movementTimer != null) movementTimer.stop();
 
+            // --- START BUG FIX ADDITION ---
+            // Hapus semua sisa langkah/antrian (Mengakhiri giliran setelah slide)
+            movementStack.clear();
+            dijkstraMoveQueue.clear();
+            // --- END BUG FIX ADDITION ---
+
             // Efek suara & pesan
             audioPlayer.playEffectImmediately("connection");
             String title = isLadderUp ? "Tangga Dinaiki!" : (direction < 0 ? "Mundur Terkena Koneksi" : "Terkena Ular!");
