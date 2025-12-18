@@ -1,6 +1,6 @@
 # ads25b8
 ES234317 - Algorithm and Data Structures Project
-Mini Project
+Mini Project (Ladder Game)
 Group 8, Class B
 Team Member
 1. 5026241043, Muhammad Sandhika Setiawan
